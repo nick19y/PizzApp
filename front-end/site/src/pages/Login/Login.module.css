@@ -1,0 +1,263 @@
+/* Login.module.css */
+.loginPage {
+    display: flex;
+    min-height: 100vh;
+    background-color: #f1f5f9;
+  }
+  
+  .loginContainer {
+    width: 100%;
+    max-width: 1000px;
+    margin: auto;
+    background-color: #ffffff;
+    border-radius: 0.5rem;
+    overflow: hidden;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+  }
+  
+  .loginLayout {
+    display: flex;
+    flex-direction: column;
+  }
+  
+  /* Lado do formulário */
+  .formSide {
+    padding: 2rem;
+  }
+  
+  .logoContainer {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 2rem;
+  }
+  
+  .logoIcon {
+    color: #f97316;
+    width: 2.5rem;
+    height: 2.5rem;
+  }
+  
+  .logoText {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #1e293b;
+    margin-left: 0.5rem;
+  }
+  
+  .title {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #1e293b;
+    margin-bottom: 1.5rem;
+    text-align: center;
+  }
+  
+  .form {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+  }
+  
+  .inputGroup {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  
+  .label {
+    display: block;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: #475569;
+  }
+  
+  .input {
+    width: 100%;
+    padding: 0.75rem 1rem;
+    border: 1px solid #cbd5e1;
+    border-radius: 0.375rem;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+    transition: all 0.2s;
+  }
+  
+  .input:focus {
+    outline: none;
+    border-color: #f97316;
+    box-shadow: 0 0 0 2px rgba(249, 115, 22, 0.2);
+  }
+  
+  .passwordContainer {
+    position: relative;
+  }
+  
+  .passwordInput {
+    width: 100%;
+    padding: 0.75rem 1rem;
+    border: 1px solid #cbd5e1;
+    border-radius: 0.375rem;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+    transition: all 0.2s;
+  }
+  
+  .passwordInput:focus {
+    outline: none;
+    border-color: #f97316;
+    box-shadow: 0 0 0 2px rgba(249, 115, 22, 0.2);
+  }
+  
+  .passwordToggle {
+    position: absolute;
+    top: 50%;
+    right: 0.75rem;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    color: #64748b;
+    cursor: pointer;
+  }
+  
+  .passwordToggle:hover {
+    color: #334155;
+  }
+  
+  .forgotPassword {
+    display: block;
+    text-align: right;
+    font-size: 0.875rem;
+    color: #f97316;
+    text-decoration: none;
+    margin-top: 0.25rem;
+  }
+  
+  .forgotPassword:hover {
+    color: #ea580c;
+    text-decoration: underline;
+  }
+  
+  .submitButton {
+    width: 100%;
+    background-color: #f97316;
+    color: white;
+    font-weight: 600;
+    padding: 0.75rem 1.5rem;
+    border: none;
+    border-radius: 0.375rem;
+    cursor: pointer;
+    transition: background-color 0.2s;
+  }
+  
+  .submitButton:hover {
+    background-color: #ea580c;
+  }
+  
+  .submitButton:focus {
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(249, 115, 22, 0.4);
+  }
+  
+  .footer {
+    margin-top: 2rem;
+    text-align: center;
+    font-size: 0.875rem;
+    color: #64748b;
+  }
+  
+  /* Lado da imagem/decoração */
+  .imageSide {
+    display: none;
+    background-color: #1e293b;
+    padding: 2rem;
+  }
+  
+  .imageContent {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    color: white;
+  }
+  
+  .imageTitle {
+    font-size: 2rem;
+    font-weight: 700;
+    margin-bottom: 1rem;
+    color: #f97316;
+  }
+  
+  .imageText {
+    font-size: 1.125rem;
+    color: #cbd5e1;
+    margin-bottom: 2rem;
+    text-align: center;
+    max-width: 300px;
+  }
+  
+  .decorationContainer {
+    position: relative;
+    width: 100%;
+    height: 16rem;
+  }
+  
+  .decorationCircle1 {
+    position: absolute;
+    width: 8rem;
+    height: 8rem;
+    border-radius: 50%;
+    background-color: #f97316;
+    opacity: 0.2;
+    top: 0;
+    left: 0;
+  }
+  
+  .decorationCircle2 {
+    position: absolute;
+    width: 10rem;
+    height: 10rem;
+    border-radius: 50%;
+    background-color: #fb923c;
+    opacity: 0.1;
+    bottom: 0;
+    right: 0;
+  }
+  
+  .decorationIcon {
+    color: #f97316;
+    opacity: 0.3;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+  }
+  
+  /* Media queries para responsividade */
+  @media (min-width: 768px) {
+    .loginLayout {
+      flex-direction: row;
+    }
+    
+    .formSide {
+      width: 60%;
+      padding: 3rem;
+    }
+    
+    .imageSide {
+      display: block;
+      width: 40%;
+    }
+  }
+  
+  @media (min-width: 1024px) {
+    .loginContainer {
+      max-width: 1200px;
+    }
+    
+    .formSide {
+      width: 50%;
+    }
+    
+    .imageSide {
+      width: 50%;
+    }
+  }

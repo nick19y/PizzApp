@@ -1,8 +1,6 @@
 import { useState } from "react";
 import { Pizza, PlusCircle, Search, Edit, Trash2, X, Save, Coffee, IceCream, Clock } from "lucide-react";
-
 import styles from "./Cardapio.module.css";
-import Header from "../../components/Header";
 
 export default function Cardapio() {
     // Estados para gerenciar o modal e formulário
@@ -209,7 +207,6 @@ export default function Cardapio() {
 
     return (
         <div className={styles.cardapio}>
-            <Header/>
             
             <main className={styles.main}>
                 <div className={styles.page_header}>

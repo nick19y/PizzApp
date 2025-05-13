@@ -1,5 +1,4 @@
 import { useState } from "react";
-import Header from "../../components/Header";
 import { Calendar, Filter, Download, PieChart, BarChart2, LineChart, FileText } from "lucide-react";
 import { 
   LineChart as ReLineChart, 
@@ -189,8 +188,6 @@ export default function Relatorios() {
 
   return (
     <div className={styles.container}>
-      <Header />
-      
       <main className={styles.main}>
         <div className={styles.content_container}>
           <div className={styles.header_container}>

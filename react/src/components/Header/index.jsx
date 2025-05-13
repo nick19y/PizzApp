@@ -15,6 +15,9 @@ import styles from "./Header.module.css";
 export default function Header() {
     const [menuOpen, setMenuOpen] = useState(false);
 
+    const onLogout = (event)=>{
+        event.preventDefault();
+    }
     return (
         <header className={styles.header}>
             <div className={styles.container}>
@@ -69,7 +72,7 @@ export default function Header() {
                             </a>
                         </li>
                         <li className={styles.nav_item}>
-                            <a href="/login" className={styles.nav_link}>
+                            <a href="#" onClick={onLogout} className={styles.nav_link}>
                                 <LogOut className={styles.nav_icon} />
                                 <span>Sair</span>
                             </a>

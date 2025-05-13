@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { BarChart3, TrendingUp, Pizza, ShoppingCart, Clock, Users, ChevronRight, CircleDollarSign } from "lucide-react";
 import styles from "./Home.module.css";
-import Header from "../../components/Header";
 
 export default function Home() {
     const [currentTime, setCurrentTime] = useState(new Date());
@@ -24,8 +23,6 @@ export default function Home() {
 
     return (
         <div className={styles.home}>
-            <Header/>
-            
             <main className={styles.main}>
                 <div className={styles.welcome_section}>
                     <div className={styles.welcome_text}>

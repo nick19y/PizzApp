@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { Search, Plus, Edit, Trash2, Eye, FileText, Package, Filter, Download, Truck } from "lucide-react";
 import styles from "./Pedidos.module.css";
-import Header from "../../components/Header";
 
 export default function Pedidos() {
   const [pedidos, setPedidos] = useState([]);
@@ -267,8 +266,6 @@ export default function Pedidos() {
 
   return (
     <div className={styles.page_container}>
-      <Header/>
-      
       <main className={styles.main_content}>
         <div className={styles.page_header}>
           <h1 className={styles.page_title}>Gerenciamento de Pedidos</h1>

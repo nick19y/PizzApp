@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { Search, Plus, Edit, Trash2, Eye, FileText, Package } from "lucide-react";
 import styles from "./Clientes.module.css";
-import Header from "../../components/Header";
 
 export default function Clientes() {
   const [clientes, setClientes] = useState([]);
@@ -166,8 +165,6 @@ export default function Clientes() {
 
   return (
     <div className={styles.page_container}>
-      <Header />
-      
       <main className={styles.main_content}>
         <div className={styles.page_header}>
           <h1 className={styles.page_title}>Gerenciamento de Clientes</h1>

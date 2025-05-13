@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { Search, Plus, Edit, Trash2, Eye, BarChart2, Filter, Download, AlertTriangle } from "lucide-react";
 import styles from "./Estoque.module.css";
-import Header from "../../components/Header";
 
 export default function Estoque() {
   const [produtos, setProdutos] = useState([]);
@@ -407,8 +406,6 @@ export default function Estoque() {
 
   return (
     <div className={styles.page_container}>
-      <Header/>
-      
       <main className={styles.main_content}>
         <div className={styles.page_header}>
           <h1 className={styles.page_title}>Estoque da Pizzaria</h1>

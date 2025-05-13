@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { Eye, EyeOff, Pizza, User, Mail, Phone, MapPin } from 'lucide-react';
 import styles from './CadastroCliente.module.css';
+import axiosClient from '../../axios-client';
+import { useStateContext } from '../../contexts/ContextProvider';
 
 export default function CadastroCliente() {
   const [showPassword, setShowPassword] = useState(false);
@@ -13,6 +15,7 @@ export default function CadastroCliente() {
     password: '',
     confirmPassword: ''
   });
+  const {setUser, setToken} = useStateContext()
   
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -22,11 +25,47 @@ export default function CadastroCliente() {
     }));
   };
   
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log('Cadastro:', formData);
-    // Aqui você implementaria a lógica de cadastro
+
+    if (formData.password !== formData.confirmPassword) {
+      alert("As senhas não coincidem.");
+      return;
+    }
+
+    try {
+      const { data } = await axiosClient.post('/signup', {
+        name: formData.name,
+        email: formData.email,
+        phone: formData.phone,
+        address: formData.address,
+        password: formData.password,
+        password_confirmation: formData.confirmPassword,
+      });
+
+      setUser(data.user);
+      setToken(data.token);
+
+      console.log('Cadastro realizado:', data);
+      alert("Cliente cadastrado com sucesso!");
+
+      // Limpa os campos
+      setFormData({
+        name: '',
+        email: '',
+        phone: '',
+        address: '',
+        password: '',
+        confirmPassword: '',
+      });
+
+    } catch (error) {
+      console.error('Erro no cadastro:', error);
+      alert("Erro ao cadastrar cliente. Verifique os dados.");
+    }
   };
+
+
 
   return (
     <div className={styles.signupPage}>

@@ -2,17 +2,56 @@
 import { useState } from 'react';
 import { Eye, EyeOff, Pizza } from 'lucide-react';
 import styles from './Login.module.css';
+import axiosClient from '../../axios-client';
+import { useStateContext } from '../../contexts/ContextProvider';
 
 export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  
-  const handleSubmit = (e) => {
+  const {setUser, setToken} = useStateContext();
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log('Login attempt:', { email, password });
-    
+
+    try {
+      const response = await axiosClient.post('/login', {
+        email: email,
+        password: password,
+      });
+
+      console.log("Resposta do login: ", response);
+
+      if (response && response.data) {
+        setUser(response.data.user);
+        setToken(response.data.token);
+
+        alert("Login realizado com sucesso!");
+
+        // Limpa os campos se quiser
+        setEmail('');
+        setPassword('');
+      } else {
+        alert("Erro inesperado: resposta da API inválida.");
+      }
+
+    } catch (error) {
+      console.error("Erro ao fazer login:", error);
+
+      if (error.response) {
+        if (error.response.status === 422 && error.response.data.message) {
+          alert(`Erro: ${error.response.data.message}`);
+        } else {
+          alert(`Erro ${error.response.status}: ${JSON.stringify(error.response.data)}`);
+        }
+      } else if (error.request) {
+        alert("Erro de conexão: o servidor não respondeu.");
+      } else {
+        alert(`Erro desconhecido: ${error.message}`);
+      }
+    }
   };
+
 
   return (
     <div className={styles.loginPage}>

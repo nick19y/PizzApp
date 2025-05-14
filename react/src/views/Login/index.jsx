@@ -70,6 +70,9 @@ export default function Login() {
             </form>
             
             <div className={styles.footer}>
+              Não tem uma conta ainda? <a href="cadastro_admin">Cadastre-se!</a>
+            </div>
+            <div className={styles.footer}>
               Sistema de Administração de Pizzaria © 2025
             </div>
           </div>

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Eye, EyeOff, Pizza, User, Mail, Phone, MapPin } from 'lucide-react';
+import { Eye, EyeOff, Pizza, User, Mail, Phone, MapPin, Check, X } from 'lucide-react';
 import styles from './CadastroAdmin.module.css';
 import axiosClient from '../../axios-client';
 import { useStateContext } from '../../contexts/ContextProvider';
@@ -13,9 +13,17 @@ export default function CadastroAdmin() {
     phone: '',
     address: '',
     password: '',
-    confirmPassword: ''
+    password_confirmation: ''
   });
-  const {setUser, setToken} = useStateContext()
+  const {setUser, setToken} = useStateContext();
+  
+  // Estado para controlar a validação da senha
+  const [passwordFocused, setPasswordFocused] = useState(false);
+  
+  // Verificar requisitos de senha
+  const passwordHasMinLength = formData.password.length >= 8;
+  const passwordHasLetters = /[a-zA-Z]/.test(formData.password);
+  const passwordHasSymbols = /[!@#$%^&*(),.?":{}|<>]/.test(formData.password);
   
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -28,44 +36,87 @@ export default function CadastroAdmin() {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (formData.password !== formData.confirmPassword) {
+    if (formData.password !== formData.password_confirmation) {
       alert("As senhas não coincidem.");
       return;
     }
 
     try {
-      const { data } = await axiosClient.post('/signup', {
+      const response = await axiosClient.post('/signup', {
         name: formData.name,
         email: formData.email,
         phone: formData.phone,
         address: formData.address,
         password: formData.password,
-        password_confirmation: formData.confirmPassword,
+        password_confirmation: formData.password_confirmation,
       });
 
-      setUser(data.user);
-      setToken(data.token);
+      console.log("Resposta da api: ", response);
 
-      console.log('Cadastro realizado:', data);
-      alert("Usuário cadastrado com sucesso!");
+      // Check if response exists and has data
+      if (response && response.data) {
+        setUser(response.data.user);
+        setToken(response.data.token);
 
-      // Limpa os campos
-      setFormData({
-        name: '',
-        email: '',
-        phone: '',
-        address: '',
-        password: '',
-        confirmPassword: '',
-      });
+        console.log('Cadastro realizado:', response.data);
+        alert("Usuário cadastrado com sucesso!");
 
+        // Limpa os campos
+        setFormData({
+          name: '',
+          email: '',
+          phone: '',
+          address: '',
+          password: '',
+          password_confirmation: '',
+        });
+      } else {
+        console.error('Resposta da API inválida:', response);
+        alert("Erro ao cadastrar usuário. Resposta da API inválida.");
+      }
     } catch (error) {
       console.error('Erro no cadastro:', error);
-      alert("Erro ao cadastrar usuário. Verifique os dados.");
+      if (error.response.status === 422 && error.response.data.errors) {
+        const validationErrors = error.response.data.errors;
+        console.log("Erros: ", validationErrors);
+      }
+      // Exibir mensagem de erro mais detalhada
+      if (error.response) {
+        // O servidor respondeu com um status de erro
+        console.log('Erro do servidor:', error.response.data);
+        
+        // Mostrar detalhes específicos de validação para erros 422
+        if (error.response.status === 422 && error.response.data.errors) {
+          const validationErrors = error.response.data.errors;
+          let errorMessage = "Erros de validação:\n";
+          
+          for (const field in validationErrors) {
+            errorMessage += `- ${field}: ${validationErrors[field].join(', ')}\n`;
+          }
+          
+          alert(errorMessage);
+        } else {
+          alert(`Erro ao cadastrar: ${error.response.status} - ${JSON.stringify(error.response.data)}`);
+        }
+      } else if (error.request) {
+        // A requisição foi feita mas não houve resposta
+        console.log('Sem resposta:', error.request);
+        alert("Erro de conexão: Não foi possível conectar ao servidor.");
+      } else {
+        // Algo aconteceu na configuração da requisição
+        alert(`Erro: ${error.message}`);
+      }
     }
   };
 
-
+  // Estilo para os indicadores de requisitos de senha
+  const requirementStyle = (met) => ({
+    display: 'flex',
+    alignItems: 'center',
+    color: met ? 'green' : 'red',
+    marginBottom: '4px',
+    fontSize: '0.85rem'
+  });
 
   return (
     <div className={styles.signupPage}>
@@ -163,6 +214,8 @@ export default function CadastroAdmin() {
                       placeholder="********"
                       value={formData.password}
                       onChange={handleChange}
+                      onFocus={() => setPasswordFocused(true)}
+                      onBlur={() => setPasswordFocused(false)}
                       required
                     />
                     <button
@@ -173,19 +226,37 @@ export default function CadastroAdmin() {
                       {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
                     </button>
                   </div>
+                  
+                  {/* Mostrar requisitos de senha quando o campo estiver focado ou preenchido */}
+                  {(passwordFocused || formData.password.length > 0) && (
+                    <div className={styles.passwordRequirements}>
+                      <div style={requirementStyle(passwordHasMinLength)}>
+                        {passwordHasMinLength ? <Check size={16} /> : <X size={16} />}
+                        <span style={{ marginLeft: '5px' }}>Mínimo 8 caracteres</span>
+                      </div>
+                      <div style={requirementStyle(passwordHasLetters)}>
+                        {passwordHasLetters ? <Check size={16} /> : <X size={16} />}
+                        <span style={{ marginLeft: '5px' }}>Incluir letras</span>
+                      </div>
+                      <div style={requirementStyle(passwordHasSymbols)}>
+                        {passwordHasSymbols ? <Check size={16} /> : <X size={16} />}
+                        <span style={{ marginLeft: '5px' }}>Incluir símbolos (ex: @, #, $)</span>
+                      </div>
+                    </div>
+                  )}
                 </div>
                 
               </div>
             <div className={styles.inputGroup}>
-                <label htmlFor="confirmPassword" className={styles.label}>Confirmar senha</label>
+                <label htmlFor="password_confirmation" className={styles.label}>Confirmar senha</label>
                 <div className={styles.passwordContainer}>
                 <input
-                    id="confirmPassword"
-                    name="confirmPassword"
+                    id="password_confirmation"
+                    name="password_confirmation"
                     type={showConfirmPassword ? "text" : "password"}
                     className={styles.passwordInput}
                     placeholder="********"
-                    value={formData.confirmPassword}
+                    value={formData.password_confirmation}
                     onChange={handleChange}
                     required
                 />
@@ -197,9 +268,20 @@ export default function CadastroAdmin() {
                     {showConfirmPassword ? <EyeOff size={20} /> : <Eye size={20} />}
                 </button>
                 </div>
+                {/* Mostrar mensagem se as senhas não combinam */}
+                {formData.password_confirmation && formData.password !== formData.password_confirmation && (
+                  <div style={{ color: 'red', fontSize: '0.85rem', marginTop: '5px' }}>
+                    <X size={16} style={{ marginRight: '5px', verticalAlign: 'middle' }} />
+                    As senhas não coincidem
+                  </div>
+                )}
             </div>
               
-              <button type="submit" className={styles.submitButton}>
+              <button 
+                type="submit" 
+                className={styles.submitButton}
+                disabled={!passwordHasMinLength || !passwordHasLetters || !passwordHasSymbols || formData.password !== formData.password_confirmation}
+              >
                 Cadastrar
               </button>
               

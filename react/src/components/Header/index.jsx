@@ -1,23 +1,53 @@
-import { 
-    Menu, 
-    User, 
-    Users, 
-    Pizza, 
-    ShoppingCart, 
-    BarChart3, 
-    FileBarChart, 
-    Boxes, 
-    LogOut 
+import {
+    Menu,
+    User,
+    Users,
+    Pizza,
+    ShoppingCart,
+    BarChart3,
+    FileBarChart,
+    Boxes,
+    LogOut
 } from "lucide-react";
 import { useState } from "react";
 import styles from "./Header.module.css";
+import axiosClient from "../../axios-client";
 
-export default function Header() {
+
+export default function Header({ onLogout }) {
     const [menuOpen, setMenuOpen] = useState(false);
 
-    const onLogout = (event)=>{
-        event.preventDefault();
-    }
+    // const onLogout = async (event) => {
+    //     event.preventDefault();
+
+    //     try {
+    //         const response = await axiosClient.post('/logout'); // Use o método e a rota corretos
+
+    //         console.log("Resposta do logout: ", response);
+
+    //         if (response && response.status === 204) {
+    //             // Logout bem-sucedido
+    //             alert("Logout realizado com sucesso!");
+    //             // Redirecione o usuário para a página de login ou outra página
+    //             window.location.href = '/login'; // Exemplo de redirecionamento
+    //             // Ou você pode atualizar o estado global de autenticação aqui
+    //         } else {
+    //             alert("Erro ao fazer logout: resposta inesperada do servidor.");
+    //         }
+
+    //     } catch (error) {
+    //         console.error("Erro ao fazer logout:", error);
+
+    //         if (error.response) {
+    //             alert(`Erro ${error.response.status}: ${JSON.stringify(error.response.data)}`);
+    //         } else if (error.request) {
+    //             alert("Erro de conexão ao fazer logout: o servidor não respondeu.");
+    //         } else {
+    //             alert(`Erro desconhecido ao fazer logout: ${error.message}`);
+    //         }
+    //     }
+    // };
+
     return (
         <header className={styles.header}>
             <div className={styles.container}>
@@ -26,7 +56,7 @@ export default function Header() {
                     <h1 className={styles.logo_text}>PizzaAdmin</h1>
                 </div>
 
-                <button 
+                <button
                     className={styles.menu_button}
                     onClick={() => setMenuOpen(!menuOpen)}
                 >

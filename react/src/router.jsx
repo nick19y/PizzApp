@@ -1,6 +1,5 @@
 import { createBrowserRouter, Navigate } from "react-router-dom";
 import Login from "./views/Login";
-import CadastroCliente from "./views/CadastroCliente";
 import NaoEncontrado from "./views/NaoEncontrado";
 import Cardapio from "./views/Cardapio";
 import Clientes from "./views/Clientes";
@@ -10,6 +9,7 @@ import Pedidos from "./views/Pedidos";
 import Relatorios from "./views/Relatorios";
 import DefaultLayout from "./components/DefaultLayout";
 import GuestLayout from "./components/GuestLayout";
+import CadastroAdmin from "./views/CadastroAdministrador";
 
 const router = createBrowserRouter([
     {
@@ -55,8 +55,8 @@ const router = createBrowserRouter([
                 element: <Login/>
             },
             {
-                path: '/cadastro_cliente',
-                element: <CadastroCliente/>
+                path: '/cadastro_admin',
+                element: <CadastroAdmin/>
             },
         ]
     },

@@ -42,6 +42,7 @@ class AuthController extends Controller
                 'password' => bcrypt($data["password"]), // Importante: usar bcrypt para criptografar a senha
                 'address' => $data["address"],
                 'phone' => $data["phone"],
+                'role' => $data["role"],
             ]);
             
             // Criar o token
@@ -55,6 +56,7 @@ class AuthController extends Controller
                     'email' => $user->email,
                     'address' => $user->address,
                     'phone' => $user->phone,
+                    'role' => $user->role,
                 ],
                 'token' => $token
             ], 201);

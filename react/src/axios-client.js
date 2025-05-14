@@ -18,8 +18,8 @@ axiosClient.interceptors.response.use(
     },
     (error) => {
         try {
-            const { response } = error;
-            if (response.status === 401) {
+            // Check if error has a response property before accessing it
+            if (error.response && error.response.status === 401) {
                 localStorage.removeItem('ACCESS_TOKEN');
             }
         } catch (e) {

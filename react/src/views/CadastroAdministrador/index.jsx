@@ -13,7 +13,8 @@ export default function CadastroAdmin() {
     phone: '',
     address: '',
     password: '',
-    password_confirmation: ''
+    password_confirmation: '',
+    role: 'admin'
   });
   const {setUser, setToken} = useStateContext();
   
@@ -49,6 +50,7 @@ export default function CadastroAdmin() {
         address: formData.address,
         password: formData.password,
         password_confirmation: formData.password_confirmation,
+        role: formData.role,
       });
 
       console.log("Resposta da api: ", response);
@@ -69,6 +71,7 @@ export default function CadastroAdmin() {
           address: '',
           password: '',
           password_confirmation: '',
+          role: 'admin',
         });
       } else {
         console.error('Resposta da API inválida:', response);
@@ -76,11 +79,8 @@ export default function CadastroAdmin() {
       }
     } catch (error) {
       console.error('Erro no cadastro:', error);
-      if (error.response.status === 422 && error.response.data.errors) {
-        const validationErrors = error.response.data.errors;
-        console.log("Erros: ", validationErrors);
-      }
-      // Exibir mensagem de erro mais detalhada
+      
+      // Verificar se existe error.response antes de acessar suas propriedades
       if (error.response) {
         // O servidor respondeu com um status de erro
         console.log('Erro do servidor:', error.response.data);

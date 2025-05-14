@@ -34,6 +34,7 @@ class SignupRequest extends FormRequest
             ],            
             'address' => 'nullable|string|max:255',
             'phone' => 'nullable|string|max:20',
+            'role' => 'nullable|string',
         ];
     }
 }

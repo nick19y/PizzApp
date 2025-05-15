@@ -6,6 +6,8 @@ use App\Http\Controllers\DessertController;
 use App\Http\Controllers\DrinkController;
 use App\Http\Controllers\ItemController;
 use App\Http\Controllers\PizzaController;
+use App\Http\Controllers\OrderController;
+use App\Http\Controllers\ItemOrderController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -22,6 +24,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::apiResource('drinks', DrinkController::class);
     Route::apiResource('desserts', DessertController::class);
     Route::apiResource('pizzas', PizzaController::class);
+    Route::apiResource('orders', OrderController::class);
+    Route::post('/orders/for-user', [OrderController::class, 'storeForUser']);
+    Route::apiResource('item_order', ItemOrderController::class);
 });
 
 Route::get('/ping', function () {

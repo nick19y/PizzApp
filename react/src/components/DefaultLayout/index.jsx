@@ -6,7 +6,6 @@ import axiosClient from "../../axios-client";
 
 export default function DefaultLayout() {
     const { user, token, setUser, setToken } = useStateContext();
-    console.log("Default layout");
 
     if (!token) {
         return <Navigate to="/login" />;

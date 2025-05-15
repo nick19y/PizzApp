@@ -6,6 +6,7 @@ use App\Http\Requests\OrderRequest;
 use App\Models\Item;
 use App\Models\ItemOrder;
 use App\Models\Order;
+use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -37,6 +38,78 @@ class OrderController extends Controller
             'data' => $orders
         ]);
     }
+
+    public function storeForUser(OrderRequest $request): JsonResponse
+    {
+        $data = $request->validated();
+        $items = $data['items'];
+        $userId = $data['user_id'];
+
+        // Verifica se o usuário existe
+        $user = User::findOrFail($userId);
+
+        try {
+            DB::beginTransaction();
+
+            $totalAmount = 0;
+            foreach ($items as $item) {
+                $menuItem = Item::findOrFail($item['item_id']);
+                $priceField = 'price_' . $item['size'];
+                $price = $menuItem->$priceField;
+
+                if (!$price) {
+                    throw new \Exception("Tamanho {$item['size']} não disponível para {$menuItem->name}");
+                }
+
+                $totalAmount += $price * $item['quantity'];
+            }
+
+            $order = Order::create([
+                'user_id' => $user->id,
+                'status' => 'pending',
+                'total_amount' => $totalAmount,
+                'delivery_address' => $data['delivery_address'] ?? $user->address,
+                'contact_phone' => $data['contact_phone'],
+                'notes' => $data['notes'] ?? null,
+                'delivery_time' => $data['delivery_time'] ?? null,
+                'payment_method' => $data['payment_method'],
+                'payment_status' => false
+            ]);
+
+            foreach ($items as $item) {
+                $menuItem = Item::findOrFail($item['item_id']);
+                $priceField = 'price_' . $item['size'];
+                $price = $menuItem->$priceField;
+
+                ItemOrder::create([
+                    'order_id' => $order->id,
+                    'item_id' => $item['item_id'],
+                    'size' => $item['size'],
+                    'quantity' => $item['quantity'],
+                    'unit_price' => $price,
+                    'subtotal' => $price * $item['quantity'],
+                    'special_instructions' => $item['special_instructions'] ?? null
+                ]);
+            }
+
+            DB::commit();
+            $order->load(['itemOrders.item']);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Pedido criado com sucesso para outro usuário',
+                'data' => $order
+            ], 201);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'message' => 'Erro ao criar o pedido: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
 
     /**
      * Store a newly created order in storage.

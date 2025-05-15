@@ -22,6 +22,7 @@ class OrderRequest extends FormRequest
     public function rules(): array
     {
         return [
+            'user_id' => 'required|exists:users,id',
             'delivery_address' => 'nullable|string',
             'contact_phone' => 'required|string|max:20',
             'notes' => 'nullable|string',

@@ -30,7 +30,8 @@ export default function Clientes() {
     try {
       setLoading(true);
       const response = await axiosClient.get('/clients');
-      const clientesData = response.data.data;
+      // Note: axiosClient interceptor now returns response.data directly as the array
+      const clientesData = response.data || [];
       
       setClientes(clientesData);
       setFilteredClientes(clientesData);
@@ -156,9 +157,9 @@ export default function Clientes() {
     }
   };
 
-  // Placeholder para quando tivermos pedidos relacionados aos clientes
+  // Função segura para contar pedidos - verifica se o array existe antes de acessar .length
   const countPedidos = (cliente) => {
-    return cliente.pedidos ? cliente.pedidos.length : 0;
+    return cliente && cliente.pedidos && Array.isArray(cliente.pedidos) ? cliente.pedidos.length : 0;
   };
 
   return (

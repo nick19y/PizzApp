@@ -14,11 +14,10 @@ class ItemOrderController extends Controller
     /**
      * Display all items in a specific order
      */
-    public function index(Request $request, $orderId): JsonResponse
+    public function index(Request $request, Order $order): JsonResponse
     {
         $user = $request->user();
-        $order = Order::findOrFail($orderId);
-        
+
         // Check if user is authorized to view this order
         if ($user->id !== $order->user_id && !in_array($user->role, ['admin', 'staff'])) {
             return response()->json([
@@ -26,11 +25,11 @@ class ItemOrderController extends Controller
                 'message' => 'Não autorizado'
             ], 403);
         }
-        
+
         $itemOrders = ItemOrder::with('item')
-            ->where('order_id', $orderId)
+            ->where('order_id', $order->id) // Use $order->id
             ->get();
-            
+
         return response()->json([
             'success' => true,
             'data' => $itemOrders
@@ -217,6 +216,24 @@ class ItemOrderController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Item removido do pedido com sucesso'
+        ]);
+    }
+    public function show(Request $request, ItemOrder $itemOrder): JsonResponse
+    {
+        $user = $request->user();
+        $order = $itemOrder->order;
+
+        // Check if user is authorized to view this order (and its items)
+        if ($user->id !== $order->user_id && !in_array($user->role, ['admin', 'staff'])) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Não autorizado'
+            ], 403);
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => $itemOrder->load('item')
         ]);
     }
 }

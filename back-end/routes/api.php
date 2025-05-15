@@ -18,8 +18,8 @@ Route::middleware('auth:sanctum')->group(function () {
     
     // Rotas para o gerenciamento de clientes
     Route::apiResource('clients', ClientController::class);
-    Route::apiResource('drinks', DrinkController::class);
     Route::apiResource('items', ItemController::class);
+    Route::apiResource('drinks', DrinkController::class);
     Route::apiResource('desserts', DessertController::class);
     Route::apiResource('pizzas', PizzaController::class);
 });

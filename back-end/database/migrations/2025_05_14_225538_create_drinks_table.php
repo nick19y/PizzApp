@@ -12,6 +12,7 @@ return new class extends Migration
             $table->id();
             $table->foreignId('item_id')->constrained()->onDelete('cascade');
             $table->string('type')->nullable(); // Ex: soda, juice, water
+            $table->integer('volume_ml')->nullable();
             $table->timestamps();
         });
     }

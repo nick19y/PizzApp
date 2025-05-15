@@ -11,6 +11,7 @@ class Drink extends Model
 
     protected $fillable = [
         'item_id',
+        'volume_ml',
         'type'
     ];
 

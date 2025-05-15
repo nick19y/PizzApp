@@ -14,6 +14,13 @@ axiosClient.interceptors.request.use((config) => {
 
 axiosClient.interceptors.response.use(
     (response) => {
+        // Se a resposta tiver um formato { data: [...], message: "..." }
+        // Retorna diretamente response.data.data para simplificar o acesso aos dados
+        if (response.data && response.data.data !== undefined) {
+            // Preserva o objeto original response, mas substitui o campo data 
+            // para acessar diretamente o array de dados
+            response.data = response.data.data;
+        }
         return response;
     },
     (error) => {

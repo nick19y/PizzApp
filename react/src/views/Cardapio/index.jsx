@@ -28,17 +28,45 @@ export default function Cardapio() {
         tempoEstimado: ""
     });
 
+    // Mapeamento de categorias da API para categorias do componente
+    const categoryMapping = {
+        'pizzas': 'pizzas',
+        'drinks': 'bebidas',
+        'desserts': 'sobremesas'
+    };
+
     // Carregar itens do cardápio da API
     useEffect(() => {
         fetchMenuItems();
     }, []);
+    
+    useEffect(() => {
+        console.log("Itens consultados no menu: ", menuItems)
+    }, [menuItems]);
 
     const fetchMenuItems = async () => {
         setLoading(true);
         try {
             const response = await axiosClient.get('/items');
-            // Ensure response.data is an array
-            setMenuItems(Array.isArray(response.data) ? response.data : []);
+            
+            // Mapear os dados recebidos para o formato esperado pelo componente
+            const formattedItems = Array.isArray(response.data) ? response.data.map(item => ({
+                id: item.id,
+                nome: item.name,
+                descricao: item.description,
+                categoria: categoryMapping[item.category] || item.category, // Mapear categorias da API para o componente
+                precoP: item.price_small,
+                precoM: item.price_medium,
+                precoG: item.price_large,
+                imagem: item.image,
+                disponivel: item.available,
+                destaque: item.featured,
+                tempoEstimado: item.estimated_time,
+                ingredientes: item.specific_details?.ingredients || item.pizza?.ingredients || ""
+            })) : [];
+            
+            console.log("Itens formatados: ", formattedItems);
+            setMenuItems(formattedItems);
             setError(null);
         } catch (err) {
             console.error("Erro ao carregar itens do cardápio:", err);
@@ -116,75 +144,76 @@ export default function Cardapio() {
         e.preventDefault();
         
         try {
+            // Mapear dados do formulário para o formato esperado pela API
+            // Converter categoria do componente para o formato da API
+            const apiCategory = Object.keys(categoryMapping).find(
+                key => categoryMapping[key] === formData.categoria
+            ) || formData.categoria;
+            
+            const apiData = {
+                name: formData.nome,
+                description: formData.descricao,
+                category: apiCategory,
+                price_small: formData.precoP,
+                price_medium: formData.precoM,
+                price_large: formData.precoG,
+                image: formData.imagem,
+                available: formData.disponivel,
+                featured: formData.destaque,
+                estimated_time: formData.tempoEstimado,
+                ingredients: formData.ingredientes
+            };
+            
             if (editingItem) {
                 // Atualizar item existente
-                const response = await axiosClient.put(`/items/${editingItem}`, formData);
+                const response = await axiosClient.put(`/items/${editingItem}`, apiData);
+                
+                // Mapear o item retornado para o formato esperado pelo componente
+                const updatedItem = {
+                    id: response.data.id,
+                    nome: response.data.name,
+                    descricao: response.data.description,
+                    categoria: categoryMapping[response.data.category] || response.data.category,
+                    precoP: response.data.price_small,
+                    precoM: response.data.price_medium,
+                    precoG: response.data.price_large,
+                    imagem: response.data.image,
+                    disponivel: response.data.available,
+                    destaque: response.data.featured,
+                    tempoEstimado: response.data.estimated_time,
+                    ingredientes: response.data.specific_details?.ingredients || response.data.pizza?.ingredients || ""
+                };
+                
                 setMenuItems(prevItems => 
-                    prevItems.map(item => item.id === editingItem ? response.data : item)
+                    prevItems.map(item => item.id === editingItem ? updatedItem : item)
                 );
             } else {
                 // Adicionar novo item
-                const response = await axiosClient.post('/items', formData);
-                setMenuItems(prevItems => [...prevItems, response.data]);
+                const response = await axiosClient.post('/items', apiData);
+                
+                // Mapear o item retornado para o formato esperado pelo componente
+                const newItem = {
+                    id: response.data.id,
+                    nome: response.data.name,
+                    descricao: response.data.description,
+                    categoria: categoryMapping[response.data.category] || response.data.category,
+                    precoP: response.data.price_small,
+                    precoM: response.data.price_medium,
+                    precoG: response.data.price_large,
+                    imagem: response.data.image,
+                    disponivel: response.data.available,
+                    destaque: response.data.featured,
+                    tempoEstimado: response.data.estimated_time,
+                    ingredientes: response.data.specific_details?.ingredients || response.data.pizza?.ingredients || ""
+                };
+                
+                setMenuItems(prevItems => [...prevItems, newItem]);
             }
             
             setShowModal(false);
         } catch (err) {
             console.error("Erro ao salvar item:", err);
             alert("Não foi possível salvar o item. Por favor, verifique os dados e tente novamente.");
-        }
-    };
-
-    // Funções específicas de cada categoria
-    const handleAddPizza = async (pizzaData) => {
-        try {
-            await axiosClient.post('/pizzas', pizzaData);
-            fetchMenuItems(); // Recarregar todos os itens para ter a lista atualizada
-        } catch (err) {
-            console.error("Erro ao adicionar pizza:", err);
-            throw err;
-        }
-    };
-
-    const handleAddDrink = async (drinkData) => {
-        try {
-            await axiosClient.post('/drinks', drinkData);
-            fetchMenuItems();
-        } catch (err) {
-            console.error("Erro ao adicionar bebida:", err);
-            throw err;
-        }
-    };
-
-    const handleAddDessert = async (dessertData) => {
-        try {
-            await axiosClient.post('/desserts', dessertData);
-            fetchMenuItems();
-        } catch (err) {
-            console.error("Erro ao adicionar sobremesa:", err);
-            throw err;
-        }
-    };
-
-    // Função para determinar qual endpoint específico usar baseado na categoria
-    const saveItemByCategory = async (itemData) => {
-        try {
-            switch (itemData.categoria) {
-                case 'pizzas':
-                    await handleAddPizza(itemData);
-                    break;
-                case 'bebidas':
-                    await handleAddDrink(itemData);
-                    break;
-                case 'sobremesas':
-                    await handleAddDessert(itemData);
-                    break;
-                default:
-                    throw new Error("Categoria inválida");
-            }
-        } catch (err) {
-            console.error("Erro ao salvar item por categoria:", err);
-            throw err;
         }
     };
 
@@ -285,7 +314,7 @@ export default function Cardapio() {
                                         <p className={styles.item_description}>{item.descricao}</p>
                                         
                                         <div className={styles.item_details}>
-                                            {activeCategory === 'pizzas' && (
+                                            {item.categoria === 'pizzas' && (
                                                 <div className={styles.item_prices}>
                                                     <span>P: R$ {item.precoP}</span>
                                                     <span>M: R$ {item.precoM}</span>
@@ -293,7 +322,7 @@ export default function Cardapio() {
                                                 </div>
                                             )}
                                             
-                                            {activeCategory !== 'pizzas' && (
+                                            {item.categoria !== 'pizzas' && (
                                                 <div className={styles.item_prices}>
                                                     {item.precoP && <span>R$ {item.precoP}</span>}
                                                     {item.precoM && <span>R$ {item.precoM}</span>}

@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Pizza, PlusCircle, Search, Edit, Trash2, X, Save, Coffee, IceCream, Clock } from "lucide-react";
 import styles from "./Cardapio.module.css";
+import axiosClient from "../../axios-client";
 
 export default function Cardapio() {
     // Estados para gerenciar o modal e formulário
@@ -10,6 +11,9 @@ export default function Cardapio() {
     const [editingItem, setEditingItem] = useState(null);
     const [searchTerm, setSearchTerm] = useState("");
     const [activeCategory, setActiveCategory] = useState("pizzas");
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
+    const [menuItems, setMenuItems] = useState([]);  // Initialize as empty array
     const [formData, setFormData] = useState({
         nome: "",
         descricao: "",
@@ -24,116 +28,35 @@ export default function Cardapio() {
         tempoEstimado: ""
     });
 
-    // Dados simulados para o cardápio
-    const [menuItems, setMenuItems] = useState([
-        {
-            id: 1,
-            nome: "Portuguesa",
-            descricao: "Molho de tomate, mussarela, presunto, ovos, cebola, azeitona e orégano",
-            categoria: "pizzas",
-            precoP: "39.90",
-            precoM: "49.90",
-            precoG: "59.90",
-            imagem: "portuguesa.jpg",
-            disponivel: true,
-            destaque: true,
-            ingredientes: "Molho de tomate, mussarela, presunto, ovos, cebola, azeitona, orégano",
-            tempoEstimado: "30 min"
-        },
-        {
-            id: 2,
-            nome: "Calabresa",
-            descricao: "Molho de tomate, mussarela, calabresa, cebola, azeitona e orégano",
-            categoria: "pizzas",
-            precoP: "37.90",
-            precoM: "47.90",
-            precoG: "57.90",
-            imagem: "calabresa.jpg",
-            disponivel: true,
-            destaque: true,
-            ingredientes: "Molho de tomate, mussarela, calabresa, cebola, azeitona, orégano",
-            tempoEstimado: "25 min"
-        },
-        {
-            id: 3,
-            nome: "Margherita",
-            descricao: "Molho de tomate, mussarela, tomate, manjericão fresco e orégano",
-            categoria: "pizzas",
-            precoP: "36.90",
-            precoM: "46.90",
-            precoG: "56.90",
-            imagem: "margherita.jpg",
-            disponivel: true,
-            destaque: false,
-            ingredientes: "Molho de tomate, mussarela, tomate, manjericão fresco, orégano",
-            tempoEstimado: "25 min"
-        },
-        {
-            id: 4,
-            nome: "Frango com Catupiry",
-            descricao: "Molho de tomate, mussarela, frango desfiado, catupiry, milho e orégano",
-            categoria: "pizzas",
-            precoP: "41.90",
-            precoM: "51.90",
-            precoG: "61.90",
-            imagem: "frango.jpg",
-            disponivel: true,
-            destaque: true,
-            ingredientes: "Molho de tomate, mussarela, frango desfiado, catupiry, milho, orégano",
-            tempoEstimado: "30 min"
-        },
-        {
-            id: 5,
-            nome: "Coca-Cola",
-            descricao: "Refrigerante Coca-Cola",
-            categoria: "bebidas",
-            precoP: "5.90",
-            precoM: "8.90",
-            precoG: "12.90",
-            imagem: "coca.jpg",
-            disponivel: true,
-            destaque: false,
-            ingredientes: "",
-            tempoEstimado: "5 min"
-        },
-        {
-            id: 6,
-            nome: "Suco de Laranja",
-            descricao: "Suco natural de laranja",
-            categoria: "bebidas",
-            precoP: "7.90",
-            precoM: "10.90",
-            precoG: "14.90",
-            imagem: "suco.jpg",
-            disponivel: true,
-            destaque: false,
-            ingredientes: "Laranja",
-            tempoEstimado: "10 min"
-        },
-        {
-            id: 7,
-            nome: "Petit Gateau",
-            descricao: "Petit gateau de chocolate com sorvete de creme",
-            categoria: "sobremesas",
-            precoP: "16.90",
-            precoM: "",
-            precoG: "",
-            imagem: "petit.jpg",
-            disponivel: true,
-            destaque: true,
-            ingredientes: "Chocolate, sorvete de creme",
-            tempoEstimado: "15 min"
+    // Carregar itens do cardápio da API
+    useEffect(() => {
+        fetchMenuItems();
+    }, []);
+
+    const fetchMenuItems = async () => {
+        setLoading(true);
+        try {
+            const response = await axiosClient.get('/items');
+            // Ensure response.data is an array
+            setMenuItems(Array.isArray(response.data) ? response.data : []);
+            setError(null);
+        } catch (err) {
+            console.error("Erro ao carregar itens do cardápio:", err);
+            setError("Falha ao carregar o cardápio. Por favor, tente novamente.");
+            setMenuItems([]); // Reset to empty array on error
+        } finally {
+            setLoading(false);
         }
-    ]);
+    };
 
     // Filtragem de itens baseada na categoria e termo de busca
-    const filteredItems = menuItems.filter(item => {
+    const filteredItems = Array.isArray(menuItems) ? menuItems.filter(item => {
         return (
-            item.categoria === activeCategory &&
-            (item.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            item.descricao.toLowerCase().includes(searchTerm.toLowerCase())
-        ));
-    });
+            item?.categoria === activeCategory &&
+            ((item?.nome?.toLowerCase() || "").includes(searchTerm.toLowerCase()) ||
+            (item?.descricao?.toLowerCase() || "").includes(searchTerm.toLowerCase()))
+        );
+    }) : [];
 
     // Funções para manipulação de dados
     const handleInputChange = (e) => {
@@ -175,27 +98,94 @@ export default function Cardapio() {
         setShowDeleteModal(true);
     };
 
-    const handleDeleteConfirm = () => {
-        setMenuItems(menuItems.filter(item => item.id !== itemToDelete.id));
-        setShowDeleteModal(false);
-        setItemToDelete(null);
+    const handleDeleteConfirm = async () => {
+        if (!itemToDelete || !itemToDelete.id) return;
+        
+        try {
+            await axiosClient.delete(`/items/${itemToDelete.id}`);
+            setMenuItems(prevItems => prevItems.filter(item => item.id !== itemToDelete.id));
+            setShowDeleteModal(false);
+            setItemToDelete(null);
+        } catch (err) {
+            console.error("Erro ao excluir item:", err);
+            alert("Não foi possível excluir o item. Por favor, tente novamente.");
+        }
     };
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
         
-        if (editingItem) {
-            // Atualizar item existente
-            setMenuItems(menuItems.map(item => 
-                item.id === editingItem ? { ...formData, id: item.id } : item
-            ));
-        } else {
-            // Adicionar novo item
-            const newId = Math.max(...menuItems.map(item => item.id), 0) + 1;
-            setMenuItems([...menuItems, { ...formData, id: newId }]);
+        try {
+            if (editingItem) {
+                // Atualizar item existente
+                const response = await axiosClient.put(`/items/${editingItem}`, formData);
+                setMenuItems(prevItems => 
+                    prevItems.map(item => item.id === editingItem ? response.data : item)
+                );
+            } else {
+                // Adicionar novo item
+                const response = await axiosClient.post('/items', formData);
+                setMenuItems(prevItems => [...prevItems, response.data]);
+            }
+            
+            setShowModal(false);
+        } catch (err) {
+            console.error("Erro ao salvar item:", err);
+            alert("Não foi possível salvar o item. Por favor, verifique os dados e tente novamente.");
         }
-        
-        setShowModal(false);
+    };
+
+    // Funções específicas de cada categoria
+    const handleAddPizza = async (pizzaData) => {
+        try {
+            await axiosClient.post('/pizzas', pizzaData);
+            fetchMenuItems(); // Recarregar todos os itens para ter a lista atualizada
+        } catch (err) {
+            console.error("Erro ao adicionar pizza:", err);
+            throw err;
+        }
+    };
+
+    const handleAddDrink = async (drinkData) => {
+        try {
+            await axiosClient.post('/drinks', drinkData);
+            fetchMenuItems();
+        } catch (err) {
+            console.error("Erro ao adicionar bebida:", err);
+            throw err;
+        }
+    };
+
+    const handleAddDessert = async (dessertData) => {
+        try {
+            await axiosClient.post('/desserts', dessertData);
+            fetchMenuItems();
+        } catch (err) {
+            console.error("Erro ao adicionar sobremesa:", err);
+            throw err;
+        }
+    };
+
+    // Função para determinar qual endpoint específico usar baseado na categoria
+    const saveItemByCategory = async (itemData) => {
+        try {
+            switch (itemData.categoria) {
+                case 'pizzas':
+                    await handleAddPizza(itemData);
+                    break;
+                case 'bebidas':
+                    await handleAddDrink(itemData);
+                    break;
+                case 'sobremesas':
+                    await handleAddDessert(itemData);
+                    break;
+                default:
+                    throw new Error("Categoria inválida");
+            }
+        } catch (err) {
+            console.error("Erro ao salvar item por categoria:", err);
+            throw err;
+        }
     };
 
     // Categorias disponíveis
@@ -204,6 +194,27 @@ export default function Cardapio() {
         { id: "bebidas", name: "Bebidas", icon: <Coffee /> },
         { id: "sobremesas", name: "Sobremesas", icon: <IceCream /> }
     ];
+
+    // Exibir estados de carregamento e erro
+    if (loading) {
+        return (
+            <div className={styles.loading_state}>
+                <div className={styles.spinner}></div>
+                <p>Carregando cardápio...</p>
+            </div>
+        );
+    }
+
+    if (error) {
+        return (
+            <div className={styles.error_state}>
+                <p>{error}</p>
+                <button onClick={fetchMenuItems} className={styles.retry_button}>
+                    Tentar novamente
+                </button>
+            </div>
+        );
+    }
 
     return (
         <div className={styles.cardapio}>
@@ -380,7 +391,7 @@ export default function Cardapio() {
                                     <textarea
                                         id="descricao"
                                         name="descricao"
-                                        value={formData.descricao}
+                                        value={formData.descricao || ""}
                                         onChange={handleInputChange}
                                         rows="3"
                                     ></textarea>
@@ -391,7 +402,7 @@ export default function Cardapio() {
                                     <textarea
                                         id="ingredientes"
                                         name="ingredientes"
-                                        value={formData.ingredientes}
+                                        value={formData.ingredientes || ""}
                                         onChange={handleInputChange}
                                         rows="3"
                                         placeholder="Separados por vírgula"
@@ -409,7 +420,7 @@ export default function Cardapio() {
                                                 type="number"
                                                 id="precoP"
                                                 name="precoP"
-                                                value={formData.precoP}
+                                                value={formData.precoP || ""}
                                                 onChange={handleInputChange}
                                                 step="0.01"
                                                 min="0"
@@ -428,7 +439,7 @@ export default function Cardapio() {
                                                         type="number"
                                                         id="precoM"
                                                         name="precoM"
-                                                        value={formData.precoM}
+                                                        value={formData.precoM || ""}
                                                         onChange={handleInputChange}
                                                         step="0.01"
                                                         min="0"
@@ -445,7 +456,7 @@ export default function Cardapio() {
                                                         type="number"
                                                         id="precoG"
                                                         name="precoG"
-                                                        value={formData.precoG}
+                                                        value={formData.precoG || ""}
                                                         onChange={handleInputChange}
                                                         step="0.01"
                                                         min="0"
@@ -463,7 +474,7 @@ export default function Cardapio() {
                                         type="text"
                                         id="tempoEstimado"
                                         name="tempoEstimado"
-                                        value={formData.tempoEstimado}
+                                        value={formData.tempoEstimado || ""}
                                         onChange={handleInputChange}
                                         placeholder="Ex: 30 min"
                                     />
@@ -475,7 +486,7 @@ export default function Cardapio() {
                                         type="text"
                                         id="imagem"
                                         name="imagem"
-                                        value={formData.imagem}
+                                        value={formData.imagem || ""}
                                         onChange={handleInputChange}
                                         placeholder="Ex: pizza-portuguesa.jpg"
                                     />
@@ -487,7 +498,7 @@ export default function Cardapio() {
                                             type="checkbox"
                                             id="disponivel"
                                             name="disponivel"
-                                            checked={formData.disponivel}
+                                            checked={formData.disponivel || false}
                                             onChange={handleInputChange}
                                         />
                                         <label htmlFor="disponivel">Disponível para venda</label>
@@ -498,7 +509,7 @@ export default function Cardapio() {
                                             type="checkbox"
                                             id="destaque"
                                             name="destaque"
-                                            checked={formData.destaque}
+                                            checked={formData.destaque || false}
                                             onChange={handleInputChange}
                                         />
                                         <label htmlFor="destaque">Item em destaque</label>
@@ -529,7 +540,7 @@ export default function Cardapio() {
             )}
 
             {/* Modal de confirmação de exclusão */}
-            {showDeleteModal && (
+            {showDeleteModal && itemToDelete && (
                 <div className={styles.modal_overlay}>
                     <div className={styles.delete_modal}>
                         <div className={styles.delete_modal_header}>

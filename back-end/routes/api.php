@@ -2,6 +2,10 @@
 
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\ClientController;
+use App\Http\Controllers\DessertController;
+use App\Http\Controllers\DrinkController;
+use App\Http\Controllers\ItemController;
+use App\Http\Controllers\PizzaController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -14,6 +18,10 @@ Route::middleware('auth:sanctum')->group(function () {
     
     // Rotas para o gerenciamento de clientes
     Route::apiResource('clients', ClientController::class);
+    Route::apiResource('drinks', DrinkController::class);
+    Route::apiResource('items', ItemController::class);
+    Route::apiResource('desserts', DessertController::class);
+    Route::apiResource('pizzas', PizzaController::class);
 });
 
 Route::get('/ping', function () {

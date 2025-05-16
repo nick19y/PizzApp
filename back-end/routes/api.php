@@ -9,6 +9,7 @@ use App\Http\Controllers\PizzaController;
 use App\Http\Controllers\OrderController;
 use App\Http\Controllers\ItemOrderController;
 use App\Http\Controllers\IngredientController;
+use App\Http\Controllers\ReportController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -30,10 +31,18 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/order-items/{orderId}', [ItemOrderController::class, 'getByOrderId']);
     Route::apiResource('item_order', ItemOrderController::class);
     
-    // Rotas para gerenciamento de ingredientes - adicione este bloco
+    // Rotas para gerenciamento de ingredientes
     Route::apiResource('ingredients', IngredientController::class);
     Route::get('/ingredient-categories', [IngredientController::class, 'categories']);
     Route::get('/ingredient-stats', [IngredientController::class, 'stats']);
+    
+    // Rotas para relatórios
+    Route::get('/reports/most-sold-item', [ReportController::class, 'mostSoldItem']);
+    Route::get('/reports/sales-stats', [ReportController::class, 'salesStats']);
+    Route::get('/reports/sales-by-day', [ReportController::class, 'salesByDay']);
+    Route::get('/reports/sales-by-product', [ReportController::class, 'salesByProduct']);
+    Route::get('/reports/sales-by-category', [ReportController::class, 'salesByCategory']);
+    Route::get('/reports/sales-by-hour', [ReportController::class, 'salesByHour']);
 });
 
 // Rotas públicas (fora do grupo auth:sanctum)

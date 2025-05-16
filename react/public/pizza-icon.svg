@@ -1,0 +1,36 @@
+<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+  <!-- Fatia de pizza invertida (ponta para baixo) -->
+  <path d="M 5 5 L 95 5 L 50 95 Z" fill="#F5D76E" stroke="#D68910" stroke-width="2"/>
+  
+  <!-- Borda da fatia -->
+  <path d="M 5 5 L 95 5 L 50 95 Z" fill="none" stroke="#C87137" stroke-width="4"/>
+  
+  <!-- "Queijo derretido" em amarelo mais claro -->
+  <path d="M 15 15 L 85 15 L 50 85 Z" fill="#FDEBD0" stroke="none"/>
+  
+  <!-- Linhas de corte -->
+  <path d="M 50 5 L 50 95" stroke="#C87137" stroke-width="1" stroke-dasharray="5,5"/>
+  <path d="M 30 5 L 50 95" stroke="#C87137" stroke-width="1" stroke-dasharray="5,5"/>
+  <path d="M 70 5 L 50 95" stroke="#C87137" stroke-width="1" stroke-dasharray="5,5"/>
+  
+  <!-- Coberturas (pepperoni) -->
+  <circle cx="40" cy="20" r="5" fill="#E74C3C"/>
+  <circle cx="65" cy="25" r="4" fill="#E74C3C"/>
+  <circle cx="55" cy="40" r="5" fill="#E74C3C"/>
+  <circle cx="35" cy="45" r="4" fill="#E74C3C"/>
+  <circle cx="60" cy="55" r="4" fill="#E74C3C"/>
+  <circle cx="45" cy="65" r="3" fill="#E74C3C"/>
+  <circle cx="50" cy="75" r="3" fill="#E74C3C"/>
+  
+  <!-- Azeitonas -->
+  <circle cx="30" cy="30" r="3" fill="#145A32"/>
+  <circle cx="70" cy="40" r="3" fill="#145A32"/>
+  <circle cx="40" cy="55" r="3" fill="#145A32"/>
+  
+  <!-- Destaques de queijo -->
+  <circle cx="25" cy="15" r="2" fill="#F9E79F"/>
+  <circle cx="75" cy="20" r="2" fill="#F9E79F"/>
+  <circle cx="45" cy="35" r="2" fill="#F9E79F"/>
+  <circle cx="65" cy="45" r="2" fill="#F9E79F"/>
+  <circle cx="50" cy="60" r="2" fill="#F9E79F"/>
+</svg>

@@ -30,7 +30,6 @@ export default function Clientes() {
     try {
       setLoading(true);
       const response = await axiosClient.get('/clients');
-      // Note: axiosClient interceptor now returns response.data directly as the array
       const clientesData = response.data || [];
       
       setClientes(clientesData);

@@ -11,7 +11,7 @@ export default function NaoEncontrado() {
           <div className={styles.contentSide}>
             <div className={styles.logoContainer}>
               <Pizza className={styles.logoIcon} />
-              <span className={styles.logoText}>PizzaAdmin</span>
+              <span className={styles.logoText}>PizzApp</span>
             </div>
             
             <div className={styles.contentBox}>
@@ -41,7 +41,7 @@ export default function NaoEncontrado() {
           {/* Lado da imagem/decoração */}
           <div className={styles.imageSide}>
             <div className={styles.imageContent}>
-              <h3 className={styles.imageTitle}>PizzaAdmin</h3>
+              <h3 className={styles.imageTitle}>PizzApp</h3>
               <p className={styles.imageText}>
                 Ops! Parece que essa fatia não está no cardápio
               </p>

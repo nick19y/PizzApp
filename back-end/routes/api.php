@@ -8,7 +8,7 @@ use App\Http\Controllers\ItemController;
 use App\Http\Controllers\PizzaController;
 use App\Http\Controllers\OrderController;
 use App\Http\Controllers\ItemOrderController;
-use App\Http\Controllers\IngredientController; // <-- Adicione esta linha
+use App\Http\Controllers\IngredientController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -17,7 +17,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/user', function (Request $request){
         return $request->user();
     });
-    Route::post('/logout', [AuthController::class, 'logout']); // A rota de logout precisa estar aqui!
+    Route::post('/logout', [AuthController::class, 'logout']);
     
     // Rotas para o gerenciamento de clientes
     Route::apiResource('clients', ClientController::class);

@@ -126,7 +126,7 @@ export default function CadastroAdmin() {
           <div className={styles.formSide}>
             <div className={styles.logoContainer}>
               <Pizza className={styles.logoIcon} />
-              <span className={styles.logoText}>PizzaAdmin</span>
+              <span className={styles.logoText}>PizzApp</span>
             </div>
             
             <h2 className={styles.title}>Cadastro de Usuário</h2>
@@ -298,7 +298,7 @@ export default function CadastroAdmin() {
           {/* Lado da imagem/decoração */}
           <div className={styles.imageSide}>
             <div className={styles.imageContent}>
-              <h3 className={styles.imageTitle}>PizzaAdmin</h3>
+              <h3 className={styles.imageTitle}>PizzApp</h3>
               <p className={styles.imageText}>
                 Cadastre-se para fazer pedidos e acompanhar suas entregas
               </p>

@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Search, Plus, Edit, Trash2, Eye, BarChart2, Filter, Download, AlertTriangle } from "lucide-react";
+import { Search, Plus, Edit, Trash2, Eye, BarChart2, Filter, Download, AlertTriangle, ChevronUp, ChevronDown } from "lucide-react";
 import styles from "./Estoque.module.css";
 import axiosClient from "../../axios-client";
 
@@ -36,6 +36,9 @@ export default function Estoque() {
     unidade_medida: "",
     data_validade: ""
   });
+  // Estados para ordenação
+  const [sortField, setSortField] = useState('nome');
+  const [sortDirection, setSortDirection] = useState('asc');
 
   // Carregamento inicial dos dados
   useEffect(() => {
@@ -76,12 +79,13 @@ export default function Estoque() {
           dataUltimaCompra: item.data_ultima_compra || '',
           unidadeMedida: item.unidade_medida || '',
           dataValidade: item.data_validade || '',
-          imagem: item.imagem || '/api/placeholder/80/80'
         }));
         
-        console.log('Dados normalizados:', normalizedData);
+        // Ordenar os dados
+        const sortedData = sortData(normalizedData, sortField, sortDirection);
+        
         setProdutos(normalizedData);
-        setFilteredProdutos(normalizedData);
+        setFilteredProdutos(sortedData);
       })
       .catch(error => {
         console.error('Erro ao carregar ingredientes:', error);
@@ -91,6 +95,52 @@ export default function Estoque() {
       .finally(() => {
         setLoading(false);
       });
+  };
+
+  // Função para ordenar os dados
+  const sortData = (data, field, direction) => {
+    return [...data].sort((a, b) => {
+      let valueA = a[field];
+      let valueB = b[field];
+      
+      // Tratamento especial para datas
+      if (field === 'dataValidade' || field === 'dataUltimaCompra') {
+        valueA = new Date(valueA || '2000-01-01').getTime();
+        valueB = new Date(valueB || '2000-01-01').getTime();
+      }
+      
+      // Para números, garantir comparação numérica
+      if (typeof valueA === 'number' && typeof valueB === 'number') {
+        return direction === 'asc' ? valueA - valueB : valueB - valueA;
+      }
+      
+      // Para strings, comparação padrão
+      if (direction === 'asc') {
+        return String(valueA).localeCompare(String(valueB));
+      } else {
+        return String(valueB).localeCompare(String(valueA));
+      }
+    });
+  };
+
+  // Função para alternar ordenação
+  const handleSort = (field) => {
+    const direction = field === sortField && sortDirection === 'asc' ? 'desc' : 'asc';
+    setSortField(field);
+    setSortDirection(direction);
+    
+    // Aplicar ordenação aos dados filtrados
+    const sortedData = sortData(filteredProdutos, field, direction);
+    setFilteredProdutos(sortedData);
+  };
+
+  // Função para exibir indicador de ordenação
+  const renderSortIndicator = (field) => {
+    if (sortField !== field) return null;
+    
+    return sortDirection === 'asc' 
+      ? <ChevronUp size={14} className={styles.sort_icon} /> 
+      : <ChevronDown size={14} className={styles.sort_icon} />;
   };
 
   // Função para carregar as categorias
@@ -134,9 +184,9 @@ export default function Estoque() {
       }
     })
       .then(response => {
-          const responseData = response.data.data || response.data;
-          const dataArray = Array.isArray(responseData) ? responseData : [];
-          const normalizedData = dataArray.map(item => ({
+        const responseData = response.data.data || response.data;
+        const dataArray = Array.isArray(responseData) ? responseData : [];
+        const normalizedData = dataArray.map(item => ({
           id: item.id,
           codigo: item.codigo,
           nome: item.nome,
@@ -151,9 +201,12 @@ export default function Estoque() {
           dataUltimaCompra: item.data_ultima_compra,
           unidadeMedida: item.unidade_medida,
           dataValidade: item.data_validade,
-          imagem: item.imagem || '/api/placeholder/80/80'
         }));
-        setFilteredProdutos(normalizedData);
+        
+        // Ordenar conforme atual campo e direção
+        const sortedData = sortData(normalizedData, sortField, sortDirection);
+        setFilteredProdutos(sortedData);
+        
         // Atualizar estatísticas quando filtros mudam
         getStats();
       })
@@ -174,9 +227,9 @@ export default function Estoque() {
       }
     })
       .then(response => {
-          const responseData = response.data.data || response.data;
-          const dataArray = Array.isArray(responseData) ? responseData : [];      
-          const normalizedData = dataArray.map(item => ({
+        const responseData = response.data.data || response.data;
+        const dataArray = Array.isArray(responseData) ? responseData : [];      
+        const normalizedData = dataArray.map(item => ({
           id: item.id,
           codigo: item.codigo,
           nome: item.nome,
@@ -191,9 +244,12 @@ export default function Estoque() {
           dataUltimaCompra: item.data_ultima_compra,
           unidadeMedida: item.unidade_medida,
           dataValidade: item.data_validade,
-          imagem: item.imagem || '/api/placeholder/80/80'
         }));
-        setFilteredProdutos(normalizedData);
+        
+        // Ordenar conforme atual campo e direção
+        const sortedData = sortData(normalizedData, sortField, sortDirection);
+        setFilteredProdutos(sortedData);
+        
         // Atualizar estatísticas quando filtros mudam
         getStats();
       })
@@ -333,7 +389,7 @@ export default function Estoque() {
   const generateProductCode = () => {
     // Gera um código de ingrediente aleatório com formato ING + 3 dígitos
     const lastId = produtos.length > 0 ? 
-      Math.max(...produtos.map(p => parseInt(p.codigo.replace('ING', '')))) : 0;
+      Math.max(...produtos.map(p => parseInt(p.codigo.replace('ING', '') || '0'))) : 0;
     const newCode = `ING${String(lastId + 1).padStart(3, '0')}`;
     return newCode;
   };
@@ -507,12 +563,36 @@ export default function Estoque() {
             <table className={styles.produtos_table}>
               <thead>
                 <tr>
-                  <th>Ingrediente</th>
-                  <th>Código</th>
-                  <th>Categoria</th>
-                  <th>Preço (R$)</th>
-                  <th>Estoque</th>
-                  <th>Validade</th>
+                  <th className={styles.sortable} onClick={() => handleSort('nome')}>
+                    <div className={styles.th_content}>
+                      Nome {renderSortIndicator('nome')}
+                    </div>
+                  </th>
+                  <th className={styles.sortable} onClick={() => handleSort('codigo')}>
+                    <div className={styles.th_content}>
+                      Código {renderSortIndicator('codigo')}
+                    </div>
+                  </th>
+                  <th className={styles.sortable} onClick={() => handleSort('categoria')}>
+                    <div className={styles.th_content}>
+                      Categoria {renderSortIndicator('categoria')}
+                    </div>
+                  </th>
+                  <th className={styles.sortable} onClick={() => handleSort('precoCompra')}>
+                    <div className={styles.th_content}>
+                      Preço (R$) {renderSortIndicator('precoCompra')}
+                    </div>
+                  </th>
+                  <th className={styles.sortable} onClick={() => handleSort('quantidadeEstoque')}>
+                    <div className={styles.th_content}>
+                      Estoque {renderSortIndicator('quantidadeEstoque')}
+                    </div>
+                  </th>
+                  <th className={styles.sortable} onClick={() => handleSort('dataValidade')}>
+                    <div className={styles.th_content}>
+                      Validade {renderSortIndicator('dataValidade')}
+                    </div>
+                  </th>
                   <th>Ações</th>
                 </tr>
               </thead>
@@ -525,20 +605,13 @@ export default function Estoque() {
                     return (
                       <tr key={produto.id}>
                         <td>
-                          <div className={styles.produto_info}>
-                            <img 
-                              src={produto.imagem} 
-                              alt={produto.nome} 
-                              className={styles.produto_imagem}
-                            />
-                            <div>
-                              <span className={styles.produto_nome}>{produto.nome}</span>
-                              <span className={styles.produto_descricao}>
-                                {produto.descricao.length > 60 
-                                  ? produto.descricao.substring(0, 60) + '...' 
-                                  : produto.descricao}
-                              </span>
-                            </div>
+                          <div className={styles.produto_info_redesigned}>
+                            <span className={styles.produto_nome}>{produto.nome}</span>
+                            <span className={styles.produto_descricao}>
+                              {produto.descricao && produto.descricao.length > 40 
+                                ? produto.descricao.substring(0, 40) + '...' 
+                                : produto.descricao}
+                            </span>
                           </div>
                         </td>
                         <td>{produto.codigo}</td>
@@ -783,25 +856,24 @@ export default function Estoque() {
             </div>
             
             <div className={styles.detalhes_container}>
-              <div className={styles.detalhes_header}>
-                <div className={styles.produto_imagem_grande}>
-                  <img src={selectedProduto.imagem} alt={selectedProduto.nome} />
-                </div>
-                <div className={styles.produto_info_detalhes}>
+              <div className={styles.detalhes_header_redesigned}>
+                <div className={styles.ingrediente_detalhes_title}>
                   <h3>{selectedProduto.nome}</h3>
-                  <p className={styles.codigo_produto}>Código: {selectedProduto.codigo}</p>
-                  <p className={styles.categoria_produto}>Categoria: {selectedProduto.categoria}</p>
-                  <div className={styles.estoque_status_container}>
-                    <span className={styles.estoque_label}>Status do Estoque:</span>
-                    <span className={`${styles.estoque_badge} ${getEstoqueStatusClass(
-                      getEstoqueStatus(selectedProduto.quantidadeEstoque, selectedProduto.estoqueMinimo)
-                    )}`}>
-                      {selectedProduto.quantidadeEstoque} {selectedProduto.unidadeMedida}
-                      {getEstoqueStatus(selectedProduto.quantidadeEstoque, selectedProduto.estoqueMinimo) === "baixo" && (
-                        <AlertTriangle size={14} className={styles.estoque_icon} />
-                      )}
-                    </span>
+                  <div className={styles.codigo_categoria_container}>
+                    <p className={styles.codigo_produto}>Código: {selectedProduto.codigo}</p>
+                    <p className={styles.categoria_produto}>Categoria: {selectedProduto.categoria}</p>
                   </div>
+                </div>
+                <div className={styles.estoque_status_container}>
+                  <span className={styles.estoque_label}>Status do Estoque:</span>
+                  <span className={`${styles.estoque_badge_large} ${getEstoqueStatusClass(
+                    getEstoqueStatus(selectedProduto.quantidadeEstoque, selectedProduto.estoqueMinimo)
+                  )}`}>
+                    {selectedProduto.quantidadeEstoque} {selectedProduto.unidadeMedida}
+                    {getEstoqueStatus(selectedProduto.quantidadeEstoque, selectedProduto.estoqueMinimo) === "baixo" && (
+                      <AlertTriangle size={14} className={styles.estoque_icon} />
+                    )}
+                  </span>
                 </div>
               </div>
               
@@ -848,7 +920,7 @@ export default function Estoque() {
               
               <div className={styles.detalhes_section}>
                 <h3>Descrição do Produto</h3>
-                <p className={styles.descricao_texto}>{selectedProduto.descricao}</p>
+                <p className={styles.descricao_texto}>{selectedProduto.descricao || 'Sem descrição disponível.'}</p>
               </div>
               
               <div className={styles.detalhes_section}>
@@ -870,14 +942,6 @@ export default function Estoque() {
                   >
                     <Edit size={16} />
                     Editar Ingrediente
-                  </button>
-                  <button 
-                    className={styles.adjust_stock_button}
-                    onClick={() => ajustarEstoque(selectedProduto)}
-                    style={{ marginLeft: '0.75rem' }}
-                  >
-                    <BarChart2 size={16} />
-                    Ajustar Estoque
                   </button>
                 </div>
               </div>

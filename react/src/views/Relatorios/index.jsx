@@ -400,7 +400,7 @@ export default function Relatorios() {
       </main>
       
       <footer className={styles.footer}>
-        &copy; 2025 PizzaAdmin - Sistema de Gerenciamento de Pizzaria
+        &copy; 2025 PizzApp - Sistema de Gerenciamento de Pizzaria
       </footer>
     </div>
   );

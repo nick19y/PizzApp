@@ -1,9 +1,11 @@
 import { useState, useEffect } from "react";
 import { BarChart3, TrendingUp, Pizza, ShoppingCart, Clock, Users, ChevronRight, CircleDollarSign } from "lucide-react";
 import styles from "./Home.module.css";
+import { useStateContext } from "../../contexts/ContextProvider";
 
 export default function Home() {
     const [currentTime, setCurrentTime] = useState(new Date());
+    const { user } = useStateContext();
     
     useEffect(() => {
         const timer = setInterval(() => {
@@ -13,7 +15,6 @@ export default function Home() {
         return () => clearInterval(timer);
     }, []);
 
-    // Dados simulados para os gráficos e estatísticas
     const recentOrders = [
         { id: '#4832', customer: 'João Silva', items: '1 Portuguesa G, 1 Refrigerante', total: 'R$ 57,90', status: 'Entregue' },
         { id: '#4831', customer: 'Maria Oliveira', items: '1 Calabresa M, 1 Suco', total: 'R$ 42,50', status: 'Em entrega' },
@@ -26,7 +27,7 @@ export default function Home() {
             <main className={styles.main}>
                 <div className={styles.welcome_section}>
                     <div className={styles.welcome_text}>
-                        <h1 className={styles.welcome_title}>Bem-vindo, Administrador</h1>
+                        <h1 className={styles.welcome_title}>Bem-vindo, {user.name || 'Administrador'}</h1>
                         <p className={styles.welcome_subtitle}>
                             {currentTime.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })} | 
                             {currentTime.toLocaleTimeString('pt-BR')}

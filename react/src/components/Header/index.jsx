@@ -22,7 +22,7 @@ export default function Header({ onLogout }) {
             <div className={styles.container}>
                 <div className={styles.logo_container}>
                     <Pizza className={styles.logo_icon} />
-                    <h1 className={styles.logo_text}>PizzaAdmin</h1>
+                    <h1 className={styles.logo_text}>PizzApp</h1>
                 </div>
 
                 <button

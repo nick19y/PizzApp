@@ -228,19 +228,21 @@ class OrderController extends Controller
             ], 403);
         }
         
-        $request->validate([
-            'status' => 'required|in:pending,processing,completed,cancelled,delivered',
-            'payment_status' => 'boolean'
+        $validated = $request->validate([
+            'status' => 'sometimes|required|in:pending,processing,shipped,delivered,canceled',
+            'payment_status' => 'sometimes|boolean',
+            'delivery_address' => 'sometimes|nullable|string',
+            'contact_phone' => 'sometimes|nullable|string|max:20',
+            'notes' => 'sometimes|nullable|string',
+            'delivery_time' => 'sometimes|nullable|date',
+            'payment_method' => 'sometimes|string|in:cash,credit_card,debit_card,pix',
         ]);
         
-        $order->update([
-            'status' => $request->status,
-            'payment_status' => $request->payment_status ?? $order->payment_status
-        ]);
+        $order->update($validated);
         
         return response()->json([
             'success' => true,
-            'message' => 'Status do pedido atualizado com sucesso',
+            'message' => 'Pedido atualizado com sucesso',
             'data' => $order
         ]);
     }

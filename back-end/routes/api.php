@@ -30,13 +30,6 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::apiResource('item_order', ItemOrderController::class);
 });
 
-Route::get('/ping', function () {
-    return response()->json([
-        'message' => 'API funcionando corretamente 🚀',
-        'status' => 'ok'
-    ]);
-});
-
 // Rotas públicas (fora do grupo auth:sanctum)
 Route::post('/signup', [AuthController::class, 'signup']);
 Route::post('/login', [AuthController::class, 'login']);

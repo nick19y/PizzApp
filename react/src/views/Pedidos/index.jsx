@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Search, Plus, Edit, Trash2, Eye, FileText, Package, Filter, Download, Truck, X } from "lucide-react";
+import { Search, Plus, Edit, Trash2, Eye, FileText, Package, Filter, Download, Truck, X, ShoppingCart } from "lucide-react";
 import styles from "./Pedidos.module.css";
 import axiosClient from "../../axios-client";
 
@@ -11,7 +11,6 @@ export default function Pedidos() {
   const [selectedPedido, setSelectedPedido] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isDetalhesModalOpen, setIsDetalhesModalOpen] = useState(false);
-  const [isItemModalOpen, setIsItemModalOpen] = useState(false);
   const [itens, setItens] = useState([]);
   const [selectedItems, setSelectedItems] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -29,16 +28,6 @@ export default function Pedidos() {
     status: "pending",
     items: []
   });
-  const [itemFormData, setItemFormData] = useState({
-    item_id: "",
-    order_id: null,
-    quantity: 1,
-    size: "medium",
-    notes: ""
-  });
-  useEffect(()=>{
-    console.log("Itens selecionados: ", selectedItems);
-  }, [selectedItems])
 
   // Status mapping para português
   const statusMap = {
@@ -81,33 +70,25 @@ export default function Pedidos() {
       const ordersData = await Promise.all(
         response.data.data.map(async (order) => {
           // Buscar os itens de cada pedido
+          let orderItems = [];
           try {
-            const itemsResponse = await axiosClient.get(`/item_order/${order.id}`);
-            return {
-              ...order,
-              items: itemsResponse.data || [],
-              clienteNome: order.user ? order.user.name : 'Cliente não encontrado',
-              clienteEmail: order.user ? order.user.email : '',
-              clienteTelefone: order.contact_phone,
-              data: order.created_at,
-              valor: order.total_amount,
-              status: statusMap[order.status] || order.status,
-              endereco: order.delivery_address
-            };
+            orderItems = await fetchPedidoItems(order.id);
           } catch (err) {
             console.error(`Erro ao buscar itens do pedido ${order.id}:`, err);
-            return {
-              ...order,
-              items: [],
-              clienteNome: order.user ? order.user.name : 'Cliente não encontrado',
-              clienteEmail: order.user ? order.user.email : '',
-              clienteTelefone: order.contact_phone,
-              data: order.created_at,
-              valor: order.total_amount,
-              status: statusMap[order.status] || order.status,
-              endereco: order.delivery_address
-            };
+            // Continuar mesmo com erro, apenas com array vazio
           }
+          
+          return {
+            ...order,
+            items: orderItems,
+            clienteNome: order.user ? order.user.name : 'Cliente não encontrado',
+            clienteEmail: order.user ? order.user.email : '',
+            clienteTelefone: order.contact_phone,
+            data: order.created_at,
+            valor: order.total_amount,
+            status: statusMap[order.status] || order.status,
+            endereco: order.delivery_address
+          };
         })
       );
       setPedidos(ordersData);
@@ -120,6 +101,7 @@ export default function Pedidos() {
     }
   };
 
+
   // Buscar itens do menu
   const fetchItens = async () => {
     try {
@@ -129,9 +111,6 @@ export default function Pedidos() {
       console.error("Erro ao buscar itens:", err);
     }
   };
-  useEffect(()=>{
-    console.log("Itens consultados 1: ", itens)
-  }, [itens])
 
   // Buscar clientes
   const fetchClientes = async () => {
@@ -144,10 +123,10 @@ export default function Pedidos() {
   };
 
   // Buscar itens de um pedido específico
-  const fetchPedidoItems = async (orderId) => {
+    const fetchPedidoItems = async (orderId) => {
     try {
-      const response = await axiosClient.get(`/item_order/${orderId}`);
-      return response.data;
+      const response = await axiosClient.get(`/order-items/${orderId}`);
+      return Array.isArray(response.data) ? response.data : [];
     } catch (err) {
       console.error(`Erro ao buscar itens do pedido ${orderId}:`, err);
       return [];
@@ -165,50 +144,58 @@ export default function Pedidos() {
     setStatusFilter(status);
     filterPedidos(searchTerm, status);
   };
+
+  // Gerenciamento de itens em um pedido
   const handleAddItem = (item) => {
-    const selectedSize = itemSizes[item.id] || 'small'; // padrão se não escolher
+    const selectedSize = itemSizes[item.id] || 'small';
+    
+    // Determinar o preço baseado no tamanho selecionado
     const unit_price =
       selectedSize === 'small' ? item.price_small :
       selectedSize === 'medium' ? item.price_medium :
       item.price_large;
-
-    const newItem = {
-      specific_details: {
-        item_id: item.id,
-      },
-      size: selectedSize,
-      quantity: 1,
-      unit_price,
-      special_instructions: ''
-    };
-
-    setSelectedItems(prev => [...prev, newItem]);
-  };
-
-
-  const handleRemoveItem = (item) => {
-    const existing = selectedItems.find(
-      i => i.id === item.id && i.size === item.size
+    
+    // Verificar se o item já existe no carrinho com o mesmo tamanho
+    const existingItemIndex = selectedItems.findIndex(
+      i => i.specific_details.item_id === item.id && i.size === selectedSize
     );
-
-    if (!existing) return; // não faz nada se o item não existir
-
-    if (existing.quantity === 1) {
-      // remove da lista se for o último
-      setSelectedItems(prev =>
-        prev.filter(i => !(i.id === item.id && i.size === item.size))
-      );
+    
+    if (existingItemIndex !== -1) {
+      // Se já existe, aumentar a quantidade
+      const updatedItems = [...selectedItems];
+      updatedItems[existingItemIndex].quantity += 1;
+      setSelectedItems(updatedItems);
     } else {
-      // só diminui a quantidade
-      setSelectedItems(prev =>
-        prev.map(i =>
-          i.id === item.id && i.size === item.size
-            ? { ...i, quantity: i.quantity - 1 }
-            : i
-        )
-      );
+      // Se não existe, adicionar novo item
+      const newItem = {
+        specific_details: {
+          item_id: item.id,
+          name: item.name, // Guardando o nome para exibição
+          description: item.description
+        },
+        size: selectedSize,
+        quantity: 1,
+        unit_price,
+        special_instructions: ''
+      };
+      
+      setSelectedItems(prev => [...prev, newItem]);
     }
   };
+
+  const handleRemoveItem = (index) => {
+    // Remove o item pelo índice
+    setSelectedItems(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const handleUpdateItemQuantity = (index, newQuantity) => {
+    if (newQuantity < 1) return; // Não permitir quantidade menor que 1
+    
+    setSelectedItems(prev => prev.map((item, i) => 
+      i === index ? { ...item, quantity: newQuantity } : item
+    ));
+  };
+
   const handleSizeChange = (itemId, size) => {
     setItemSizes(prev => ({
       ...prev,
@@ -216,6 +203,11 @@ export default function Pedidos() {
     }));
   };
 
+  const handleSpecialInstructionsChange = (index, instructions) => {
+    setSelectedItems(prev => prev.map((item, i) => 
+      i === index ? { ...item, special_instructions: instructions } : item
+    ));
+  };
 
   const filterPedidos = (search, status) => {
     let filtered = [...pedidos];
@@ -239,24 +231,52 @@ export default function Pedidos() {
     setFilteredPedidos(filtered);
   };
 
-  const openModal = (pedido = null) => {
+  const openModal = async (pedido = null) => {
+    // Resetar os itens selecionados
+    setSelectedItems([]);
+    
     // Se estamos editando um pedido existente
     if (pedido) {
-      const deliveryTime = pedido.delivery_time 
-        ? new Date(pedido.delivery_time).toISOString().slice(0, 16) 
-        : '';
+      try {
+        // Buscar os itens mais recentes do pedido
+        const items = await fetchPedidoItems(pedido.id);
+        
+        // Verificar se items é um array antes de usar map
+        const formattedItems = Array.isArray(items) ? items.map(item => ({
+          specific_details: {
+            item_id: item.item.id,
+            name: item.item.name,
+            description: item.item.description
+          },
+          size: item.size,
+          quantity: item.quantity,
+          unit_price: item.unit_price,
+          special_instructions: item.notes || '',
+          id: item.id // ID do item_order para atualizações
+        })) : [];
+        
+        // Definir os itens selecionados para edição
+        setSelectedItems(formattedItems);
+        
+        const deliveryTime = pedido.delivery_time 
+          ? new Date(pedido.delivery_time).toISOString().slice(0, 16) 
+          : '';
 
-      setFormData({
-        id: pedido.id,
-        user_id: pedido.user_id,
-        delivery_address: pedido.delivery_address || pedido.endereco || '',
-        contact_phone: pedido.contact_phone || pedido.clienteTelefone || '',
-        notes: pedido.notes || pedido.observacoes || '',
-        delivery_time: deliveryTime,
-        payment_method: pedido.payment_method || 'cash',
-        status: statusMapReverse[pedido.status] || pedido.status || 'pending',
-        items: pedido.items || []
-      });
+        setFormData({
+          id: pedido.id,
+          user_id: pedido.user_id,
+          delivery_address: pedido.delivery_address || pedido.endereco || '',
+          contact_phone: pedido.contact_phone || pedido.clienteTelefone || '',
+          notes: pedido.notes || pedido.observacoes || '',
+          delivery_time: deliveryTime,
+          payment_method: pedido.payment_method || 'cash',
+          status: statusMapReverse[pedido.status] || pedido.status || 'pending',
+          items: Array.isArray(items) ? items : [] // Garantir que items seja um array
+        });
+      } catch (err) {
+        console.error("Erro ao carregar itens do pedido para edição:", err);
+        alert("Erro ao carregar itens do pedido. Tente novamente.");
+      }
     } else {
       // Se estamos criando um novo pedido
       const now = new Date();
@@ -279,13 +299,52 @@ export default function Pedidos() {
 
   const closeModal = () => {
     setIsModalOpen(false);
+    // Limpar o formulário ao fechar
+    setFormData({
+      id: null,
+      user_id: "",
+      delivery_address: "",
+      contact_phone: "",
+      notes: "",
+      delivery_time: "",
+      payment_method: "cash",
+      status: "pending",
+      items: []
+    });
+    setSelectedItems([]);
   };
 
   const openDetalhesModal = async (pedido) => {
     // Atualizar itens do pedido antes de abrir o modal
+    setLoading(true);
     try {
-      const items = await fetchPedidoItems(pedido.id);
-      const updatedPedido = {...pedido, items};
+      // Use a nova rota de order-items para buscar os itens
+      const response = await axiosClient.get(`/order-items/${pedido.id}`);
+      const items = Array.isArray(response.data) ? response.data : [];
+      
+      // Garantir que cada item tenha as propriedades necessárias
+      const processedItems = items.map(item => {
+        // Certifique-se de que o item e suas propriedades estejam definidos
+        if (!item.item) {
+          console.warn(`Item sem propriedade 'item' encontrado no pedido ${pedido.id}`, item);
+        }
+        
+        return {
+          ...item,
+          // Garantir que o item tenha um objeto 'item' com um nome
+          item: item.item || { 
+            name: 'Item não encontrado',
+            id: item.item_id
+          }
+        };
+      });
+      
+      // Atualize o pedido com os itens processados
+      const updatedPedido = {
+        ...pedido, 
+        items: processedItems
+      };
+      
       setSelectedPedido(updatedPedido);
       setIsDetalhesModalOpen(true);
       
@@ -303,36 +362,23 @@ export default function Pedidos() {
     } catch (err) {
       console.error("Erro ao abrir detalhes do pedido:", err);
       setError("Não foi possível carregar os detalhes do pedido.");
-      setSelectedPedido(pedido);
+      
+      // Em caso de erro, usar array vazio para os itens
+      const fallbackPedido = {
+        ...pedido,
+        items: []
+      };
+      
+      setSelectedPedido(fallbackPedido);
       setIsDetalhesModalOpen(true);
+    } finally {
+      setLoading(false);
     }
   };
 
   const closeDetalhesModal = () => {
     setIsDetalhesModalOpen(false);
     setSelectedPedido(null);
-  };
-
-  const openAddItemModal = (pedido) => {
-    setItemFormData({
-      item_id: "",
-      order_id: pedido.id,
-      quantity: 1,
-      size: "medium",
-      notes: ""
-    });
-    setIsItemModalOpen(true);
-  };
-
-  const closeItemModal = () => {
-    setIsItemModalOpen(false);
-    setItemFormData({
-      item_id: "",
-      order_id: null,
-      quantity: 1,
-      size: "medium",
-      notes: ""
-    });
   };
 
   const handleInputChange = (e) => {
@@ -343,209 +389,132 @@ export default function Pedidos() {
     });
   };
 
-  const handleItemInputChange = (e) => {
-    const { name, value } = e.target;
-    setItemFormData({
-      ...itemFormData,
-      [name]: value
-    });
+  const calculateCartTotal = () => {
+    return selectedItems.reduce((total, item) => {
+      return total + (item.unit_price * item.quantity);
+    }, 0);
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    if (selectedItems.length === 0) {
+      alert("Por favor, adicione pelo menos um item ao pedido.");
+      return;
+    }
+    
     setLoading(true);
 
-    const orderData = {
-      delivery_address: formData.delivery_address,
-      contact_phone: formData.contact_phone,
-      notes: formData.notes,
-      delivery_time: formData.delivery_time,
-      payment_method: formData.payment_method,
-      status: formData.status,
-      user_id: formData.user_id || null,
-      items: selectedItems.map(item => ({
-        item_id: item.specific_details.item_id,
-        size: item.size,
-        quantity: item.quantity,
-        special_instructions: item.special_instructions || null
-      }))
-    };
-    console.log("Formulário sendo enviado: ", formData);
-
     try {
+      const orderData = {
+        delivery_address: formData.delivery_address,
+        contact_phone: formData.contact_phone,
+        notes: formData.notes,
+        delivery_time: formData.delivery_time,
+        payment_method: formData.payment_method,
+        status: formData.status,
+        user_id: formData.user_id || null,
+        // Adicionar items conforme esperado pelo backend
+        items: selectedItems.map(item => ({
+          item_id: item.specific_details.item_id,
+          size: item.size,
+          quantity: item.quantity,
+          special_instructions: item.special_instructions || null
+        }))
+      };
+
       let response;
+      let itemsToProcess = [];
 
       if (formData.id) {
         // Atualizar pedido existente
         response = await axiosClient.put(`/orders/${formData.id}`, orderData);
-
-        setPedidos(prevPedidos =>
-          prevPedidos.map(pedido =>
-            pedido.id === formData.id
-              ? {
-                  ...response.data,
-                  clienteNome: response.data.user ? response.data.user.name : 'Cliente não encontrado',
-                  clienteEmail: response.data.user ? response.data.user.email : '',
-                  clienteTelefone: response.data.contact_phone,
-                  data: response.data.created_at,
-                  valor: response.data.total_amount,
-                  status: statusMap[response.data.status] || response.data.status,
-                  endereco: response.data.delivery_address,
-                  items: formData.items
-                }
-              : pedido
-          )
-        );
+        
+        // Para cada item, determinar se precisa adicionar, atualizar ou remover
+        const existingItemIds = formData.items.map(item => item.id);
+        
+        // Itens a serem atualizados ou adicionados
+        for (const item of selectedItems) {
+          const itemData = {
+            order_id: formData.id,
+            item_id: item.specific_details.item_id,
+            quantity: item.quantity,
+            size: item.size,
+            notes: item.special_instructions || null
+          };
+          
+          if (item.id) {
+            // Atualizar item existente
+            await axiosClient.put(`/item_order/${item.id}`, itemData);
+          } else {
+            // Adicionar novo item
+            await axiosClient.post('/item_order', itemData);
+          }
+          
+          // Marcar este item como processado
+          itemsToProcess.push(item.id);
+        }
+        
+        // Identificar itens removidos
+        const currentItemIds = selectedItems
+          .filter(item => item.id)
+          .map(item => item.id);
+        
+        // Remover itens que não estão mais no pedido
+        for (const itemId of existingItemIds) {
+          if (!currentItemIds.includes(itemId)) {
+            await axiosClient.delete(`/item_order/${itemId}`);
+          }
+        }
       } else {
         // Criar novo pedido
         if (formData.user_id) {
+          // Verificar se user_id está preenchido antes de fazer a chamada
+          if (!formData.user_id) {
+            throw new Error("Selecione um cliente para criar o pedido");
+          }
+          
           // Rota personalizada para outro usuário
           response = await axiosClient.post('/orders/for-user', orderData);
         } else {
           // Pedido normal
           response = await axiosClient.post('/orders', orderData);
         }
-
-        const newPedido = {
-          ...response.data.data || response.data, // compatibilidade com estrutura do retorno
-          clienteNome: response.data.data?.user?.name || response.data.user?.name || 'Cliente não encontrado',
-          clienteEmail: response.data.data?.user?.email || response.data.user?.email || '',
-          clienteTelefone: response.data.data?.contact_phone || response.data.contact_phone,
-          data: response.data.data?.created_at || response.data.created_at,
-          valor: response.data.data?.total_amount || response.data.total_amount,
-          status: statusMap[response.data.data?.status || response.data.status] || response.data.status,
-          endereco: response.data.data?.delivery_address || response.data.delivery_address,
-          items: []
-        };
-
-        setPedidos(prevPedidos => [...prevPedidos, newPedido]);
+        
+        // Extrair o ID do pedido criado
+        const newOrderId = response.data.data?.id || response.data.id;
+        
+        // Adicionar cada item ao pedido
+        for (const item of selectedItems) {
+          await axiosClient.post('/item_order', {
+            order_id: newOrderId,
+            item_id: item.specific_details.item_id,
+            quantity: item.quantity,
+            size: item.size,
+            notes: item.special_instructions || null
+          });
+        }
       }
 
-      filterPedidos(searchTerm, statusFilter);
+      // Atualizar lista de pedidos
+      fetchPedidos();
       closeModal();
       alert(formData.id ? "Pedido atualizado com sucesso!" : "Pedido criado com sucesso!");
     } catch (err) {
       console.error("Erro ao salvar pedido:", err);
-      alert(`Erro ao ${formData.id ? 'atualizar' : 'criar'} pedido: ${err.response?.data?.message || err.message}`);
-    } finally {
-      fetchPedidos();
-      fetchItens();
-      fetchClientes();
-      setLoading(false);
-    }
-  };
-
-
-  const handleItemSubmit = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    
-    // Validar entrada
-    if (!itemFormData.item_id || !itemFormData.quantity || itemFormData.quantity < 1) {
-      alert("Por favor, selecione um item e informe uma quantidade válida.");
-      setLoading(false);
-      return;
-    }
-    
-    try {
-      const itemData = {
-        order_id: itemFormData.order_id,
-        item_id: itemFormData.item_id,
-        quantity: itemFormData.quantity,
-        size: itemFormData.size,
-        notes: itemFormData.notes || null
-      };
+      const errorMessage = err.response?.data?.message || err.message;
+      alert(`Erro ao ${formData.id ? 'atualizar' : 'criar'} pedido: ${errorMessage}`);
       
-      // Adicionar item ao pedido
-      const response = await axiosClient.post('/item_order', itemData);
-      
-      // Atualizar o pedido com o novo item
-      const updatedItems = await fetchPedidoItems(itemFormData.order_id);
-      
-      // Atualizar o pedido selecionado se estiver nos detalhes
-      if (selectedPedido && selectedPedido.id === itemFormData.order_id) {
-        setSelectedPedido(prev => ({
-          ...prev,
-          items: updatedItems,
-          valor: calculateTotal(updatedItems)
-        }));
+      // Mostrar erros específicos de validação se disponíveis
+      if (err.response?.data?.errors) {
+        const errors = err.response.data.errors;
+        console.log("Erros de validação:", errors);
+        const errorDetails = Object.values(errors).flat().join("\n");
+        alert(`Erros de validação:\n${errorDetails}`);
       }
-      
-      // Atualizar a lista de pedidos
-      const updatePedidoWithNewItems = (pedidosList) => {
-        return pedidosList.map(pedido => {
-          if (pedido.id === itemFormData.order_id) {
-            return {
-              ...pedido,
-              items: updatedItems,
-              valor: calculateTotal(updatedItems)
-            };
-          }
-          return pedido;
-        });
-      };
-      
-      setPedidos(updatePedidoWithNewItems);
-      setFilteredPedidos(updatePedidoWithNewItems);
-      
-      closeItemModal();
-      alert("Item adicionado com sucesso!");
-    } catch (err) {
-      console.error("Erro ao adicionar item:", err);
-      alert(`Erro ao adicionar item: ${err.response?.data?.message || err.message}`);
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleDeleteItem = async (itemOrderId, orderId) => {
-    if (window.confirm("Tem certeza que deseja remover este item do pedido?")) {
-      setLoading(true);
-      try {
-        // Remover item do pedido
-        await axiosClient.delete(`/item_order/${itemOrderId}`);
-        
-        // Atualizar o pedido com os itens atualizados
-        const updatedItems = await fetchPedidoItems(orderId);
-        
-        // Atualizar o pedido selecionado se estiver nos detalhes
-        if (selectedPedido && selectedPedido.id === orderId) {
-          setSelectedPedido(prev => ({
-            ...prev,
-            items: updatedItems,
-            valor: calculateTotal(updatedItems)
-          }));
-        }
-        
-        // Atualizar a lista de pedidos
-        const updatePedidoWithNewItems = (pedidosList) => {
-          return pedidosList.map(pedido => {
-            if (pedido.id === orderId) {
-              return {
-                ...pedido,
-                items: updatedItems,
-                valor: calculateTotal(updatedItems)
-              };
-            }
-            return pedido;
-          });
-        };
-        
-        setPedidos(updatePedidoWithNewItems);
-        setFilteredPedidos(updatePedidoWithNewItems);
-        
-        alert("Item removido com sucesso!");
-      } catch (err) {
-        console.error("Erro ao remover item:", err);
-        alert(`Erro ao remover item: ${err.response?.data?.message || err.message}`);
-      } finally {
-        setLoading(false);
-      }
-    }
-  };
-
-  const calculateTotal = (items) => {
-    return items.reduce((total, item) => total + parseFloat(item.subtotal || 0), 0);
   };
 
   const handleDelete = async (id) => {
@@ -806,160 +775,249 @@ export default function Pedidos() {
       {/* Modal de Cadastro/Edição de Pedido */}
       {isModalOpen && (
         <div className={styles.modal_overlay}>
-          <div className={styles.modal}>
+          <div className={styles.modal_large}>
             <div className={styles.modal_header}>
               <h2>{formData.id ? "Editar Pedido" : "Novo Pedido"}</h2>
               <button className={styles.close_button} onClick={closeModal}>×</button>
             </div>
-            <form onSubmit={handleSubmit}>
-              <div className={styles.form_grid}>
-                <div className={styles.form_group}>
-                  <label htmlFor="user_id">Cliente</label>
-                  <select
-                    id="user_id"
-                    name="user_id"
-                    value={formData.user_id || ""}
-                    onChange={handleInputChange}
-                  >
-                    <option value="">Selecione um cliente</option>
-                    {clientes.map(cliente => (
-                      <option key={cliente.id} value={cliente.id}>
-                        {cliente.name} ({cliente.email})
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div className={styles.form_group}>
-                  <label htmlFor="contact_phone">Telefone *</label>
-                  <input
-                    type="text"
-                    id="contact_phone"
-                    name="contact_phone"
-                    value={formData.contact_phone || ""}
-                    onChange={handleInputChange}
-                    required
-                    placeholder="(00) 00000-0000"
-                  />
-                </div>
-                <div className={styles.form_group}>
-                  <label htmlFor="delivery_time">Data de Entrega</label>
-                  <input
-                    type="datetime-local"
-                    id="delivery_time"
-                    name="delivery_time"
-                    value={formData.delivery_time || ""}
-                    onChange={handleInputChange}
-                  />
-                </div>
-                <div className={styles.form_group}>
-                  <label htmlFor="payment_method">Método de Pagamento *</label>
-                  <select
-                    id="payment_method"
-                    name="payment_method"
-                    value={formData.payment_method || "cash"}
-                    onChange={handleInputChange}
-                    required
-                  >
-                    <option value="cash">Dinheiro</option>
-                    <option value="credit_card">Cartão de Crédito</option>
-                    <option value="debit_card">Cartão de Débito</option>
-                    <option value="pix">PIX</option>
-                  </select>
-                </div>
-                <div className={styles.form_group_full}>
-                  <label htmlFor="delivery_address">Endereço de Entrega</label>
-                  <input
-                    type="text"
-                    id="delivery_address"
-                    name="delivery_address"
-                    value={formData.delivery_address || ""}
-                    onChange={handleInputChange}
-                    placeholder="Endereço completo"
-                  />
-                </div>
-                <div className={styles.form_group_full}>
-                  <label htmlFor="notes">Observações</label>
-                  <textarea
-                    id="notes"
-                    name="notes"
-                    value={formData.notes || ""}
-                    onChange={handleInputChange}
-                    rows="3"
-                    placeholder="Observações sobre o pedido (opcional)"
-                  ></textarea>
-                </div>
-                {formData.id && (
-                  <div className={styles.form_group}>
-                    <label htmlFor="status">Status</label>
-                    <select
-                      id="status"
-                      name="status"
-                      value={formData.status || "pending"}
-                      onChange={handleInputChange}
-                    >
-                      <option value="pending">Pendente</option>
-                      <option value="processing">Processando</option>
-                      <option value="shipped">Enviado</option>
-                      <option value="delivered">Entregue</option>
-                      <option value="canceled">Cancelado</option>
-                    </select>
+            <form onSubmit={handleSubmit} className={styles.pedido_form}>
+              <div className={styles.modal_columns}>
+                <div className={styles.left_column}>
+                  <div className={styles.column_header}>
+                    <h3>Dados do Pedido</h3>
                   </div>
-                )}
+                  
+                  <div className={styles.form_grid}>
+                    <div className={styles.form_group}>
+                      <label htmlFor="user_id">Cliente</label>
+                      <select
+                        id="user_id"
+                        name="user_id"
+                        value={formData.user_id || ""}
+                        onChange={handleInputChange}
+                      >
+                        <option value="">Selecione um cliente</option>
+                        {clientes.map(cliente => (
+                          <option key={cliente.id} value={cliente.id}>
+                            {cliente.name} ({cliente.email})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className={styles.form_group}>
+                      <label htmlFor="contact_phone">Telefone *</label>
+                      <input
+                        type="text"
+                        id="contact_phone"
+                        name="contact_phone"
+                        value={formData.contact_phone || ""}
+                        onChange={handleInputChange}
+                        required
+                        placeholder="(00) 00000-0000"
+                      />
+                    </div>
+                    <div className={styles.form_group}>
+                      <label htmlFor="delivery_time">Data de Entrega</label>
+                      <input
+                        type="datetime-local"
+                        id="delivery_time"
+                        name="delivery_time"
+                        value={formData.delivery_time || ""}
+                        onChange={handleInputChange}
+                      />
+                    </div>
+                    <div className={styles.form_group}>
+                      <label htmlFor="payment_method">Método de Pagamento *</label>
+                      <select
+                        id="payment_method"
+                        name="payment_method"
+                        value={formData.payment_method || "cash"}
+                        onChange={handleInputChange}
+                        required
+                      >
+                        <option value="cash">Dinheiro</option>
+                        <option value="credit_card">Cartão de Crédito</option>
+                        <option value="debit_card">Cartão de Débito</option>
+                        <option value="pix">PIX</option>
+                      </select>
+                    </div>
+                    <div className={styles.form_group_full}>
+                      <label htmlFor="delivery_address">Endereço de Entrega</label>
+                      <input
+                        type="text"
+                        id="delivery_address"
+                        name="delivery_address"
+                        value={formData.delivery_address || ""}
+                        onChange={handleInputChange}
+                        placeholder="Endereço completo"
+                      />
+                    </div>
+                    <div className={styles.form_group_full}>
+                      <label htmlFor="notes">Observações</label>
+                      <textarea
+                        id="notes"
+                        name="notes"
+                        value={formData.notes || ""}
+                        onChange={handleInputChange}
+                        rows="3"
+                        placeholder="Observações sobre o pedido (opcional)"
+                      ></textarea>
+                    </div>
+                    {formData.id && (
+                      <div className={styles.form_group}>
+                        <label htmlFor="status">Status</label>
+                        <select
+                          id="status"
+                          name="status"
+                          value={formData.status || "pending"}
+                          onChange={handleInputChange}
+                        >
+                          <option value="pending">Pendente</option>
+                          <option value="processing">Processando</option>
+                          <option value="shipped">Enviado</option>
+                          <option value="delivered">Entregue</option>
+                          <option value="canceled">Cancelado</option>
+                        </select>
+                      </div>
+                    )}
+                  </div>
+                </div>
+                
+                <div className={styles.right_column}>
+                  <div className={styles.column_header}>
+                    <h3>Itens do Pedido</h3>
+                    {selectedItems.length > 0 && (
+                      <div className={styles.cart_total}>
+                        <ShoppingCart size={18} />
+                        <span>R$ {calculateCartTotal().toFixed(2).replace('.', ',')}</span>
+                      </div>
+                    )}
+                  </div>
+                  
+                  {/* Lista de itens selecionados */}
+                  <div className={styles.selected_items_container}>
+                    {selectedItems.length > 0 ? (
+                      <div className={styles.selected_items_list}>
+                        {selectedItems.map((item, index) => (
+                          <div key={index} className={styles.selected_item}>
+                            <div className={styles.selected_item_header}>
+                              <h4>{item.specific_details.name || 'Item'}</h4>
+                              <button 
+                                type="button" 
+                                className={styles.remove_item_button}
+                                onClick={() => handleRemoveItem(index)}
+                              >
+                                <X size={16} />
+                              </button>
+                            </div>
+                            <div className={styles.selected_item_details}>
+                              <div className={styles.item_size_label}>
+                                Tamanho: <span>{item.size === 'small' ? 'P' : (item.size === 'medium' ? 'M' : 'G')}</span>
+                              </div>
+                              <div className={styles.item_price}>
+                                R$ {parseFloat(item.unit_price).toFixed(2).replace('.', ',')}
+                              </div>
+                            </div>
+                            <div className={styles.item_quantity_control}>
+                              <button 
+                                type="button" 
+                                className={styles.quantity_button}
+                                onClick={() => handleUpdateItemQuantity(index, item.quantity - 1)}
+                                disabled={item.quantity <= 1}
+                              >
+                                -
+                              </button>
+                              <span className={styles.quantity_value}>{item.quantity}</span>
+                              <button 
+                                type="button" 
+                                className={styles.quantity_button}
+                                onClick={() => handleUpdateItemQuantity(index, item.quantity + 1)}
+                              >
+                                +
+                              </button>
+                            </div>
+                            <div className={styles.item_subtotal}>
+                              Subtotal: <span>R$ {(item.quantity * parseFloat(item.unit_price)).toFixed(2).replace('.', ',')}</span>
+                            </div>
+                            <div className={styles.item_instructions}>
+                              <input
+                                type="text"
+                                placeholder="Instruções especiais (opcional)"
+                                value={item.special_instructions || ''}
+                                onChange={(e) => handleSpecialInstructionsChange(index, e.target.value)}
+                                className={styles.instructions_input}
+                              />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className={styles.empty_cart}>
+                        <ShoppingCart size={48} className={styles.empty_cart_icon} />
+                        <p>Nenhum item adicionado ao pedido</p>
+                        <p className={styles.empty_cart_help}>Selecione itens abaixo para adicionar ao pedido</p>
+                      </div>
+                    )}
+                  </div>
+                  
+                  {/* Catálogo de itens disponíveis */}
+                  <div className={styles.available_items_section}>
+                    <h4 className={styles.available_items_title}>Adicionar Itens</h4>
+                    
+                    <div className={styles.items_catalog}>
+                      {itens && itens.length > 0 ? (
+                        itens.map((item) => (
+                          <div key={item.id} className={styles.catalog_item}>
+                            <div className={styles.catalog_item_header}>
+                              <h5>{item.name}</h5>
+                              <p className={styles.item_description}>{item.description}</p>
+                            </div>
+                            <div className={styles.catalog_item_controls}>
+                              <div className={styles.catalog_item_sizes}>
+                                <select
+                                  value={itemSizes[item.id] || 'small'}
+                                  onChange={(e) => handleSizeChange(item.id, e.target.value)}
+                                  className={styles.size_select}
+                                >
+                                  <option value="small">Pequeno - R$ {parseFloat(item.price_small).toFixed(2).replace('.', ',')}</option>
+                                  <option value="medium">Médio - R$ {parseFloat(item.price_medium).toFixed(2).replace('.', ',')}</option>
+                                  <option value="large">Grande - R$ {parseFloat(item.price_large).toFixed(2).replace('.', ',')}</option>
+                                </select>
+                              </div>
+                              <button 
+                                type="button" 
+                                className={styles.add_catalog_item}
+                                onClick={() => handleAddItem(item)}
+                              >
+                                <Plus size={16} />
+                                Adicionar
+                              </button>
+                            </div>
+                          </div>
+                        ))
+                      ) : (
+                        <p className={styles.no_items_message}>Nenhum item disponível.</p>
+                      )}
+                    </div>
+                  </div>
+                </div>
               </div>
               
-              <div className={styles.itens_section}>
-                <h3>Escolher Itens</h3>
-                {itens && itens.length > 0 ? (
-                  <table className={styles.items_table}>
-                    <thead>
-                      <tr>
-                        <th>Item</th>
-                        <th>Tamanho</th>
-                        <th>Preço P</th>
-                        <th>Preço M</th>
-                        <th>Preço G</th>
-                        <th>Ação</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {itens.map((item) => (
-                        <tr key={`${item.id}-${item.size}`}>
-                          <td>{item.name}</td>
-                          <td>
-                            <select
-                              value={itemSizes[item.id] || 'small'}
-                              onChange={(e) => handleSizeChange(item.id, e.target.value)}
-                            >
-                              <option value="small">P</option>
-                              <option value="medium">M</option>
-                              <option value="large">G</option>
-                            </select>
-                          </td>
-                          <td>R$ {item.price_small}</td>
-                          <td>R$ {item.price_medium}</td>
-                          <td>R$ {item.price_large}</td>
-                          <td>
-                            <button type="button" onClick={() => handleAddItem(item)}>
-                              Adicionar
-                            </button>
-                            <button type="button" onClick={() => handleRemoveItem(item)}>
-                              Remover
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                ) : (
-                  <p>Nenhum item disponível.</p>
-                )}
-              </div> 
               <div className={styles.form_actions}>
-                <button type="button" className={styles.cancel_button} onClick={closeModal} disabled={loading}>
+                <button 
+                  type="button" 
+                  className={styles.cancel_button} 
+                  onClick={closeModal} 
+                  disabled={loading}
+                >
                   Cancelar
                 </button>
-                <button type="submit" className={styles.save_button} disabled={loading}>
-                  {loading ? "Salvando..." : "Salvar"}
+                <button 
+                  type="submit" 
+                  className={styles.save_button} 
+                  disabled={loading || selectedItems.length === 0}
+                >
+                  {loading ? "Salvando..." : "Salvar Pedido"}
                 </button>
               </div>
             </form>
@@ -977,114 +1035,10 @@ export default function Pedidos() {
             </div>
             
             <div className={styles.detalhes_container}>
-              <div className={styles.detalhes_section}>
-                <h3>Informações do Pedido</h3>
-                <div className={styles.detalhes_grid}>
-                  <div>
-                    <p className={styles.detail_label}>Cliente:</p>
-                    <p className={styles.detail_value}>{selectedPedido.clienteNome}</p>
-                  </div>
-                  <div>
-                    <p className={styles.detail_label}>Data:</p>
-                    <p className={styles.detail_value}>{new Date(selectedPedido.data).toLocaleDateString('pt-BR')}</p>
-                  </div>
-                  <div>
-                    <p className={styles.detail_label}>Valor Total:</p>
-                    {/* <p className={styles.detail_value}>R$ {selectedPedido.valor?.toFixed(2).replace('.', ',') || '0,00'}</p> */}
-                    <p className={styles.detail_value}>R$ {selectedPedido.valor}</p>
-                  </div>
-                  <div>
-                    <p className={styles.detail_label}>Status:</p>
-                    <p className={styles.detail_value}>
-                      <span className={`${styles.status} ${getStatusClass(selectedPedido.status)}`}>
-                        {selectedPedido.status}
-                      </span>
-                    </p>
-                  </div>
-                  <div>
-                    <p className={styles.detail_label}>Método de Pagamento:</p>
-                    <p className={styles.detail_value}>
-                      {paymentMethods[selectedPedido.payment_method] || selectedPedido.payment_method}
-                    </p>
-                  </div>
-                  {selectedPedido.delivery_time && (
-                    <div>
-                      <p className={styles.detail_label}>Horário de Entrega:</p>
-                      <p className={styles.detail_value}>{formatDateTime(selectedPedido.delivery_time)}</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-              
-              <div className={styles.detalhes_section}>
-                <h3>Dados de Contato</h3>
-                <div className={styles.detalhes_grid}>
-                  <div>
-                    <p className={styles.detail_label}>Email:</p>
-                    <p className={styles.detail_value}>{selectedPedido.clienteEmail || 'Não informado'}</p>
-                  </div>
-                  <div>
-                    <p className={styles.detail_label}>Telefone:</p>
-                    <p className={styles.detail_value}>{selectedPedido.clienteTelefone || 'Não informado'}</p>
-                  </div>
-                  <div className={styles.detail_full}>
-                    <p className={styles.detail_label}>Endereço de Entrega:</p>
-                    <p className={styles.detail_value}>{selectedPedido.endereco || 'Não informado'}</p>
-                  </div>
-                </div>
-              </div>
-              
-              <div className={styles.detalhes_section}>
-                <h3>Itens do Pedido</h3>
-                {selectedPedido.items && selectedPedido.items.length > 0 ? (
-                  <table className={styles.itens_table}>
-                    <thead>
-                      <tr>
-                        <th>Item</th>
-                        <th>Tamanho</th>
-                        <th>Quantidade</th>
-                        <th>Preço Unit.</th>
-                        <th>Subtotal</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {selectedPedido.items.map(item => (
-                        <tr key={item.id}>
-                          <td>{item.item?.name || 'Item não encontrado'}</td>
-                          <td>{item.size === 'small' ? 'P' : (item.size === 'medium' ? 'M' : 'G')}</td>
-                          <td>{item.quantity}</td>
-                          {/* <td>R$ {item.unit_price?.toFixed(2).replace('.', ',') || '0,00'}</td>
-                          <td>R$ {item.subtotal?.toFixed(2).replace('.', ',') || '0,00'}</td> */}
-                          <td>R$ {item.unit_price}</td>
-                          <td>R$ {item.subtotal}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                    <tfoot>
-                      <tr>
-                        <td colSpan="4" className={styles.total_label}>Total</td>
-                        {/* <td className={styles.total_value}>
-                          R$ {selectedPedido.valor?.toFixed(2).replace('.', ',') || '0,00'}
-                        </td> */}
-                        <td className={styles.total_value}>
-                          R$ {selectedPedido.valor}
-                        </td>
-                      </tr>
-                    </tfoot>
-                  </table>
-                ) : (
-                  <p className={styles.no_items}>Nenhum item encontrado neste pedido.</p>
-                )}
-              </div>
-              
-              {selectedPedido.notes && (
-                <div className={styles.detalhes_section}>
-                  <h3>Observações</h3>
-                  <p className={styles.observacoes_text}>{selectedPedido.notes}</p>
-                </div>
-              )}
-              
-              <div className={styles.detalhes_actions}>
+              <div className={styles.detalhes_status_header}>
+                <span className={`${styles.status} ${styles.status_badge} ${getStatusClass(selectedPedido.status)}`}>
+                  {selectedPedido.status}
+                </span>
                 <div className={styles.status_update_container}>
                   <select
                     className={styles.status_select}
@@ -1099,7 +1053,7 @@ export default function Pedidos() {
                     <option value="Cancelado">Cancelado</option>
                   </select>
                   <button 
-                    className={styles.status_update_button}
+                    className={styles.status_update_button} 
                     onClick={() => handleStatusChange(selectedPedido, document.querySelector(`.${styles.status_select}`).value)}
                     disabled={loading}
                   >
@@ -1107,10 +1061,124 @@ export default function Pedidos() {
                     Atualizar Status
                   </button>
                 </div>
+              </div>
+              
+              <div className={styles.detalhes_grid_container}>
+                <div className={styles.detalhes_section}>
+                  <h3>
+                    <FileText size={18} />
+                    Informações do Pedido
+                  </h3>
+                  <div className={styles.detalhes_grid}>
+                    <div>
+                      <p className={styles.detail_label}>Cliente:</p>
+                      <p className={styles.detail_value}>{selectedPedido.clienteNome}</p>
+                    </div>
+                    <div>
+                      <p className={styles.detail_label}>Data do Pedido:</p>
+                      <p className={styles.detail_value}>{new Date(selectedPedido.data).toLocaleDateString('pt-BR')}</p>
+                    </div>
+                    <div>
+                      <p className={styles.detail_label}>Valor Total:</p>
+                      <p className={styles.detail_value}><strong>R$ {parseFloat(selectedPedido.valor).toFixed(2).replace('.', ',')}</strong></p>
+                    </div>
+                    <div>
+                      <p className={styles.detail_label}>Método de Pagamento:</p>
+                      <p className={styles.detail_value}>
+                        {paymentMethods[selectedPedido.payment_method] || selectedPedido.payment_method}
+                      </p>
+                    </div>
+                    {selectedPedido.delivery_time && (
+                      <div>
+                        <p className={styles.detail_label}>Horário de Entrega:</p>
+                        <p className={styles.detail_value}>{formatDateTime(selectedPedido.delivery_time)}</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
                 
+                <div className={styles.detalhes_section}>
+                  <h3>
+                    <Package size={18} />
+                    Dados de Contato
+                  </h3>
+                  <div className={styles.detalhes_grid}>
+                    <div>
+                      <p className={styles.detail_label}>Email:</p>
+                      <p className={styles.detail_value}>{selectedPedido.clienteEmail || 'Não informado'}</p>
+                    </div>
+                    <div>
+                      <p className={styles.detail_label}>Telefone:</p>
+                      <p className={styles.detail_value}>{selectedPedido.clienteTelefone || 'Não informado'}</p>
+                    </div>
+                    <div className={styles.detail_full}>
+                      <p className={styles.detail_label}>Endereço de Entrega:</p>
+                      <p className={styles.detail_value}>{selectedPedido.endereco || 'Não informado'}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              <div className={styles.detalhes_section}>
+                <h3>
+                  <ShoppingCart size={18} />
+                  Itens do Pedido
+                </h3>
+                {selectedPedido.items && selectedPedido.items.length > 0 ? (
+                  <div className={styles.itens_container}>
+                    <table className={styles.itens_table}>
+                      <thead>
+                        <tr>
+                          <th>Item</th>
+                          <th>Tamanho</th>
+                          <th>Quantidade</th>
+                          <th>Preço Unit.</th>
+                          <th>Subtotal</th>
+                          <th>Observações</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {selectedPedido.items.map(item => (
+                          <tr key={item.id || `item-${Math.random()}`}>
+                            <td>{item.item?.name || 'Item não encontrado'}</td>
+                            <td className={styles.item_size_cell}>
+                              {item.size === 'small' ? 'P' : (item.size === 'medium' ? 'M' : 'G')}
+                            </td>
+                            <td className={styles.item_qty_cell}>{item.quantity}</td>
+                            <td>R$ {parseFloat(item.unit_price || 0).toFixed(2).replace('.', ',')}</td>
+                            <td><strong>R$ {parseFloat(item.subtotal || (item.quantity * (item.unit_price || 0))).toFixed(2).replace('.', ',')}</strong></td>
+                            <td className={styles.item_notes_cell}>{item.special_instructions || item.notes || '-'}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                      <tfoot>
+                        <tr>
+                          <td colSpan="4" className={styles.total_label}>Total</td>
+                          <td colSpan="2" className={styles.total_value}>
+                            R$ {parseFloat(selectedPedido.valor || 0).toFixed(2).replace('.', ',')}
+                          </td>
+                        </tr>
+                      </tfoot>
+                    </table>
+                  </div>
+                ) : (
+                  <p className={styles.no_items}>Nenhum item encontrado neste pedido.</p>
+                )}
+              </div>
+              
+              {selectedPedido.notes && (
+                <div className={styles.detalhes_section}>
+                  <h3>Observações</h3>
+                  <div className={styles.observacoes_box}>
+                    <p className={styles.observacoes_text}>{selectedPedido.notes}</p>
+                  </div>
+                </div>
+              )}
+              
+              <div className={styles.detalhes_actions}>
                 <button 
                   className={styles.invoice_button} 
-                  onClick={()=>console.log("implementar")}
+                  onClick={() => window.alert("Funcionalidade em desenvolvimento!")}
                   disabled={loading}
                 >
                   <FileText size={16} />

@@ -26,6 +26,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::apiResource('pizzas', PizzaController::class);
     Route::apiResource('orders', OrderController::class);
     Route::post('/orders/for-user', [OrderController::class, 'storeForUser']);
+    Route::get('/order-items/{orderId}', [ItemOrderController::class, 'getByOrderId']);
     Route::apiResource('item_order', ItemOrderController::class);
 });
 

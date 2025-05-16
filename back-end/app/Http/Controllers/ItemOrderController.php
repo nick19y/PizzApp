@@ -174,6 +174,25 @@ class ItemOrderController extends Controller
     }
 
     /**
+     * Get all items for a specific order
+     */
+    public function getByOrderId($orderId)
+    {
+        try {
+            $itemOrders = ItemOrder::with('item')
+                ->where('order_id', $orderId)
+                ->get();
+            
+            return response()->json($itemOrders);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Error retrieving order items',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
      * Remove an item from the order
      */
     public function destroy(Request $request, ItemOrder $itemOrder): JsonResponse

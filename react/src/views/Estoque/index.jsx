@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Search, Plus, Edit, Trash2, Eye, BarChart2, Filter, Download, AlertTriangle } from "lucide-react";
 import styles from "./Estoque.module.css";
+import axiosClient from "../../axios-client";
 
 export default function Estoque() {
   const [produtos, setProdutos] = useState([]);
@@ -10,207 +11,214 @@ export default function Estoque() {
   const [selectedProduto, setSelectedProduto] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isDetalhesModalOpen, setIsDetalhesModalOpen] = useState(false);
+  const [categorias, setCategorias] = useState([]);
+  const [stats, setStats] = useState({
+    total_ingredientes: 0,
+    valor_total_estoque: 0,
+    baixo_estoque: 0,
+    esgotados: 0,
+    vencendo: 0
+  });
+  const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     id: null,
     codigo: "",
     nome: "",
     descricao: "",
     categoria: "",
-    precoCompra: "",
-    precoVenda: "",
-    quantidadeEstoque: "",
-    estoqueMinimo: "",
+    preco_compra: "",
+    preco_venda: 0,
+    quantidade_estoque: "",
+    estoque_minimo: "",
     fornecedor: "",
     localizacao: "",
-    dataUltimaCompra: "",
-    unidadeMedida: "",
-    dataValidade: ""
+    data_ultima_compra: "",
+    unidade_medida: "",
+    data_validade: ""
   });
 
-  // Dados de exemplo para pizzaria
+  // Carregamento inicial dos dados
   useEffect(() => {
-    // Simulando carregamento de dados
-    const mockProdutos = [
-      {
-        id: 1,
-        codigo: "ING001",
-        nome: "Mussarela",
-        descricao: "Queijo mussarela fatiado para coberturas",
-        categoria: "Laticínios",
-        precoCompra: 32.00,
-        precoVenda: 0,
-        quantidadeEstoque: 25,
-        estoqueMinimo: 10,
-        fornecedor: "Laticínios Bom Sabor",
-        localizacao: "Refrigerador 1",
-        dataUltimaCompra: "2025-03-20",
-        unidadeMedida: "kg",
-        dataValidade: "2025-04-25",
-        imagem: "/api/placeholder/80/80"
-      },
-      {
-        id: 2,
-        codigo: "ING002",
-        nome: "Molho de Tomate",
-        descricao: "Molho de tomate preparado para base de pizzas",
-        categoria: "Molhos",
-        precoCompra: 18.50,
-        precoVenda: 0,
-        quantidadeEstoque: 35,
-        estoqueMinimo: 15,
-        fornecedor: "Alimentos Italianos Ltda",
-        localizacao: "Despensa 2",
-        dataUltimaCompra: "2025-03-25",
-        unidadeMedida: "litro",
-        dataValidade: "2025-05-15",
-        imagem: "/api/placeholder/80/80"
-      },
-      {
-        id: 3,
-        codigo: "ING003",
-        nome: "Farinha de Trigo",
-        descricao: "Farinha de trigo especial para massas",
-        categoria: "Farináceos",
-        precoCompra: 5.90,
-        precoVenda: 0,
-        quantidadeEstoque: 80,
-        estoqueMinimo: 50,
-        fornecedor: "Distribuidora de Grãos",
-        localizacao: "Prateleira A1",
-        dataUltimaCompra: "2025-03-10",
-        unidadeMedida: "kg",
-        dataValidade: "2025-07-10",
-        imagem: "/api/placeholder/80/80"
-      },
-      {
-        id: 4,
-        codigo: "ING004",
-        nome: "Calabresa Fatiada",
-        descricao: "Calabresa defumada fatiada para coberturas",
-        categoria: "Embutidos",
-        precoCompra: 28.90,
-        precoVenda: 0,
-        quantidadeEstoque: 8,
-        estoqueMinimo: 10,
-        fornecedor: "Frigorífico Bom Sabor",
-        localizacao: "Refrigerador 2",
-        dataUltimaCompra: "2025-03-22",
-        unidadeMedida: "kg",
-        dataValidade: "2025-04-15",
-        imagem: "/api/placeholder/80/80"
-      },
-      {
-        id: 5,
-        codigo: "ING005",
-        nome: "Fermento Biológico",
-        descricao: "Fermento biológico seco para massas",
-        categoria: "Insumos",
-        precoCompra: 12.50,
-        precoVenda: 0,
-        quantidadeEstoque: 15,
-        estoqueMinimo: 8,
-        fornecedor: "Distribuidora de Insumos",
-        localizacao: "Refrigerador 1",
-        dataUltimaCompra: "2025-03-15",
-        unidadeMedida: "pacote",
-        dataValidade: "2025-09-20",
-        imagem: "/api/placeholder/80/80"
-      },
-      {
-        id: 6,
-        codigo: "ING006",
-        nome: "Presunto",
-        descricao: "Presunto cozido fatiado para coberturas",
-        categoria: "Embutidos",
-        precoCompra: 29.90,
-        precoVenda: 0,
-        quantidadeEstoque: 0,
-        estoqueMinimo: 5,
-        fornecedor: "Frigorífico Bom Sabor",
-        localizacao: "Refrigerador 2",
-        dataUltimaCompra: "2025-03-01",
-        unidadeMedida: "kg",
-        dataValidade: "2025-04-05",
-        imagem: "/api/placeholder/80/80"
-      },
-      {
-        id: 7,
-        codigo: "ING007",
-        nome: "Orégano",
-        descricao: "Orégano desidratado para temperar pizzas",
-        categoria: "Temperos",
-        precoCompra: 16.50,
-        precoVenda: 0,
-        quantidadeEstoque: 12,
-        estoqueMinimo: 5,
-        fornecedor: "Casa das Especiarias",
-        localizacao: "Prateleira B3",
-        dataUltimaCompra: "2025-03-18",
-        unidadeMedida: "pacote",
-        dataValidade: "2025-12-10",
-        imagem: "/api/placeholder/80/80"
-      },
-      {
-        id: 8,
-        codigo: "ING008",
-        nome: "Azeitonas Pretas",
-        descricao: "Azeitonas pretas sem caroço para coberturas",
-        categoria: "Conservas",
-        precoCompra: 22.90,
-        precoVenda: 0,
-        quantidadeEstoque: 18,
-        estoqueMinimo: 10,
-        fornecedor: "Importadora de Alimentos",
-        localizacao: "Despensa 1",
-        dataUltimaCompra: "2025-03-12",
-        unidadeMedida: "pote",
-        dataValidade: "2025-08-15",
-        imagem: "/api/placeholder/80/80"
-      }
-    ];
-    
-    setProdutos(mockProdutos);
-    setFilteredProdutos(mockProdutos);
+    getIngredients();
+    getCategories();
+    getStats();
   }, []);
+
+  // Função para carregar os ingredientes
+  const getIngredients = () => {
+    setLoading(true);
+    axiosClient.get('/ingredients', {
+      params: {
+        search: searchTerm,
+        categoria: categoriaFilter !== 'todas' ? categoriaFilter : null
+      }
+    })
+      .then(response => {
+        // Verificar se os dados estão em response.data ou em response.data.data
+        const responseData = response.data.data || response.data;
+        
+        // Garantir que responseData é um array
+        const dataArray = Array.isArray(responseData) ? responseData : [];
+        
+        // Normalizar os nomes dos campos para o formato do front-end
+        const normalizedData = dataArray.map(item => ({
+          id: item.id,
+          codigo: item.codigo,
+          nome: item.nome,
+          descricao: item.descricao || '',
+          categoria: item.categoria,
+          precoCompra: parseFloat(item.preco_compra || 0),
+          precoVenda: parseFloat(item.preco_venda || 0),
+          quantidadeEstoque: parseFloat(item.quantidade_estoque || 0),
+          estoqueMinimo: parseFloat(item.estoque_minimo || 0),
+          fornecedor: item.fornecedor || '',
+          localizacao: item.localizacao || '',
+          dataUltimaCompra: item.data_ultima_compra || '',
+          unidadeMedida: item.unidade_medida || '',
+          dataValidade: item.data_validade || '',
+          imagem: item.imagem || '/api/placeholder/80/80'
+        }));
+        
+        console.log('Dados normalizados:', normalizedData);
+        setProdutos(normalizedData);
+        setFilteredProdutos(normalizedData);
+      })
+      .catch(error => {
+        console.error('Erro ao carregar ingredientes:', error);
+        // Mostrar algo para o usuário
+        alert('Erro ao carregar ingredientes. Verifique o console para mais detalhes.');
+      })
+      .finally(() => {
+        setLoading(false);
+      });
+  };
+
+  // Função para carregar as categorias
+  const getCategories = () => {
+    axiosClient.get('/ingredient-categories')
+      .then(response => {
+        setCategorias(response.data);
+      })
+      .catch(error => {
+        console.error('Erro ao carregar categorias:', error);
+      });
+  };
+
+  // Função para carregar estatísticas
+  const getStats = () => {
+    axiosClient.get('/ingredient-stats')
+      .then(response => {
+        // Garantir que os valores são números
+        const data = response.data;
+        setStats({
+          total_ingredientes: parseInt(data.total_ingredientes || 0),
+          valor_total_estoque: parseFloat(data.valor_total_estoque || 0),
+          baixo_estoque: parseInt(data.baixo_estoque || 0),
+          esgotados: parseInt(data.esgotados || 0),
+          vencendo: parseInt(data.vencendo || 0)
+        });
+      })
+      .catch(error => {
+        console.error('Erro ao carregar estatísticas:', error);
+      });
+  };
 
   const handleSearch = (e) => {
     const value = e.target.value;
     setSearchTerm(value);
-    filterProdutos(value, categoriaFilter);
+    // Atualizar os filtros na API
+    axiosClient.get('/ingredients', {
+      params: {
+        search: value,
+        categoria: categoriaFilter !== 'todas' ? categoriaFilter : null
+      }
+    })
+      .then(response => {
+          const responseData = response.data.data || response.data;
+          const dataArray = Array.isArray(responseData) ? responseData : [];
+          const normalizedData = dataArray.map(item => ({
+          id: item.id,
+          codigo: item.codigo,
+          nome: item.nome,
+          descricao: item.descricao || '',
+          categoria: item.categoria,
+          precoCompra: parseFloat(item.preco_compra),
+          precoVenda: parseFloat(item.preco_venda || 0),
+          quantidadeEstoque: parseFloat(item.quantidade_estoque),
+          estoqueMinimo: parseFloat(item.estoque_minimo),
+          fornecedor: item.fornecedor,
+          localizacao: item.localizacao || '',
+          dataUltimaCompra: item.data_ultima_compra,
+          unidadeMedida: item.unidade_medida,
+          dataValidade: item.data_validade,
+          imagem: item.imagem || '/api/placeholder/80/80'
+        }));
+        setFilteredProdutos(normalizedData);
+        // Atualizar estatísticas quando filtros mudam
+        getStats();
+      })
+      .catch(error => {
+        console.error('Erro ao filtrar ingredientes:', error);
+      });
   };
 
   const handleCategoriaFilter = (e) => {
     const categoria = e.target.value;
     setCategoriaFilter(categoria);
-    filterProdutos(searchTerm, categoria);
-  };
-
-  const filterProdutos = (search, categoria) => {
-    let filtered = [...produtos];
     
-    // Filtrar por termo de busca
-    if (search.trim() !== "") {
-      filtered = filtered.filter(produto => 
-        produto.codigo.toLowerCase().includes(search.toLowerCase()) ||
-        produto.nome.toLowerCase().includes(search.toLowerCase()) ||
-        produto.fornecedor.toLowerCase().includes(search.toLowerCase())
-      );
-    }
-    
-    // Filtrar por categoria
-    if (categoria !== "todas") {
-      filtered = filtered.filter(produto => 
-        produto.categoria.toLowerCase() === categoria.toLowerCase()
-      );
-    }
-    
-    setFilteredProdutos(filtered);
+    // Atualizar os filtros na API
+    axiosClient.get('/ingredients', {
+      params: {
+        search: searchTerm,
+        categoria: categoria !== 'todas' ? categoria : null
+      }
+    })
+      .then(response => {
+          const responseData = response.data.data || response.data;
+          const dataArray = Array.isArray(responseData) ? responseData : [];      
+          const normalizedData = dataArray.map(item => ({
+          id: item.id,
+          codigo: item.codigo,
+          nome: item.nome,
+          descricao: item.descricao || '',
+          categoria: item.categoria,
+          precoCompra: parseFloat(item.preco_compra),
+          precoVenda: parseFloat(item.preco_venda || 0),
+          quantidadeEstoque: parseFloat(item.quantidade_estoque),
+          estoqueMinimo: parseFloat(item.estoque_minimo),
+          fornecedor: item.fornecedor,
+          localizacao: item.localizacao || '',
+          dataUltimaCompra: item.data_ultima_compra,
+          unidadeMedida: item.unidade_medida,
+          dataValidade: item.data_validade,
+          imagem: item.imagem || '/api/placeholder/80/80'
+        }));
+        setFilteredProdutos(normalizedData);
+        // Atualizar estatísticas quando filtros mudam
+        getStats();
+      })
+      .catch(error => {
+        console.error('Erro ao filtrar ingredientes:', error);
+      });
   };
 
   const openModal = (produto = null) => {
     if (produto) {
       setFormData({
-        ...produto
+        id: produto.id,
+        codigo: produto.codigo,
+        nome: produto.nome,
+        descricao: produto.descricao || '',
+        categoria: produto.categoria,
+        precoCompra: produto.precoCompra,
+        precoVenda: produto.precoVenda || 0,
+        quantidadeEstoque: produto.quantidadeEstoque,
+        estoqueMinimo: produto.estoqueMinimo,
+        fornecedor: produto.fornecedor,
+        localizacao: produto.localizacao || '',
+        dataUltimaCompra: produto.dataUltimaCompra,
+        unidadeMedida: produto.unidadeMedida,
+        dataValidade: produto.dataValidade
       });
     } else {
       const hoje = new Date().toISOString().split('T')[0];
@@ -262,38 +270,63 @@ export default function Estoque() {
   const handleSubmit = (e) => {
     e.preventDefault();
     
-    if (formData.id) {
-      // Atualizar produto existente
-      const updatedProdutos = produtos.map(produto => 
-        produto.id === formData.id ? { ...formData } : produto
-      );
-      setProdutos(updatedProdutos);
-      setFilteredProdutos(updatedProdutos);
-    } else {
-      // Adicionar novo produto
-      const newProduto = {
-        ...formData,
-        id: produtos.length > 0 ? Math.max(...produtos.map(p => p.id)) + 1 : 1,
-        precoCompra: parseFloat(formData.precoCompra) || 0,
-        precoVenda: 0, // preço de venda não relevante para ingredientes
-        quantidadeEstoque: parseFloat(formData.quantidadeEstoque) || 0,
-        estoqueMinimo: parseFloat(formData.estoqueMinimo) || 0,
-        imagem: "/api/placeholder/80/80"
-      };
-      
-      const updatedProdutos = [...produtos, newProduto];
-      setProdutos(updatedProdutos);
-      setFilteredProdutos(updatedProdutos);
-    }
+    // Converter formato de dados para o formato da API
+    const apiData = {
+      codigo: formData.codigo,
+      nome: formData.nome,
+      descricao: formData.descricao,
+      categoria: formData.categoria,
+      preco_compra: parseFloat(formData.precoCompra),
+      preco_venda: parseFloat(formData.precoVenda) || 0,
+      quantidade_estoque: parseFloat(formData.quantidadeEstoque),
+      estoque_minimo: parseFloat(formData.estoqueMinimo),
+      fornecedor: formData.fornecedor,
+      localizacao: formData.localizacao,
+      data_ultima_compra: formData.dataUltimaCompra,
+      unidade_medida: formData.unidadeMedida,
+      data_validade: formData.dataValidade
+    };
     
-    closeModal();
+    if (formData.id) {
+      // Atualizar ingrediente existente
+      axiosClient.put(`/ingredients/${formData.id}`, apiData)
+        .then(() => {
+          // Após sucesso, recarregar os dados
+          getIngredients();
+          getStats();
+          closeModal();
+        })
+        .catch(error => {
+          console.error('Erro ao atualizar ingrediente:', error);
+          // Aqui você pode adicionar um tratamento de erro visual
+        });
+    } else {
+      // Adicionar novo ingrediente
+      axiosClient.post('/ingredients', apiData)
+        .then(() => {
+          // Após sucesso, recarregar os dados
+          getIngredients();
+          getStats();
+          closeModal();
+        })
+        .catch(error => {
+          console.error('Erro ao adicionar ingrediente:', error);
+          // Aqui você pode adicionar um tratamento de erro visual
+        });
+    }
   };
 
   const handleDelete = (id) => {
     if (window.confirm("Tem certeza que deseja excluir este ingrediente?")) {
-      const updatedProdutos = produtos.filter(produto => produto.id !== id);
-      setProdutos(updatedProdutos);
-      setFilteredProdutos(updatedProdutos);
+      axiosClient.delete(`/ingredients/${id}`)
+        .then(() => {
+          // Após sucesso, recarregar os dados
+          getIngredients();
+          getStats();
+        })
+        .catch(error => {
+          console.error('Erro ao excluir ingrediente:', error);
+        });
     }
   };
 
@@ -329,41 +362,11 @@ export default function Estoque() {
   };
 
   const getCategoriasUnicas = () => {
-    const categorias = [...new Set(produtos.map(produto => produto.categoria))];
     return categorias;
   };
 
   const getUnidadesMedida = () => {
     return ["kg", "g", "litro", "ml", "unidade", "pacote", "pote", "caixa"];
-  };
-
-  const getTotalProdutos = () => {
-    return filteredProdutos.length;
-  };
-
-  const getValorTotalEstoque = () => {
-    return filteredProdutos.reduce((total, produto) => 
-      total + (produto.precoCompra * produto.quantidadeEstoque), 0);
-  };
-
-  const getProdutosBaixoEstoque = () => {
-    return filteredProdutos.filter(produto => 
-      produto.quantidadeEstoque > 0 && produto.quantidadeEstoque < produto.estoqueMinimo).length;
-  };
-
-  const getProdutosEsgotados = () => {
-    return filteredProdutos.filter(produto => produto.quantidadeEstoque <= 0).length;
-  };
-
-  const getProdutosVencendo = () => {
-    const hoje = new Date();
-    const umaSemanaDepois = new Date();
-    umaSemanaDepois.setDate(hoje.getDate() + 7);
-    
-    return filteredProdutos.filter(produto => {
-      const dataValidade = new Date(produto.dataValidade);
-      return dataValidade <= umaSemanaDepois && dataValidade >= hoje;
-    }).length;
   };
 
   const verificarValidade = (dataValidade) => {
@@ -394,13 +397,25 @@ export default function Estoque() {
   };
 
   const exportarEstoque = () => {
-    // Simulação de exportação
-    alert("Exportação de ingredientes iniciada. O arquivo será baixado em breve.");
+    // Implementação de exportação - em uma versão real, poderia chamar uma API de exportação
+    const csvContent = "data:text/csv;charset=utf-8," + 
+      "Código,Nome,Categoria,Preço de Compra,Estoque,Estoque Mínimo,Validade\n" + 
+      filteredProdutos.map(p => 
+        `${p.codigo},"${p.nome}","${p.categoria}",${p.precoCompra},${p.quantidadeEstoque},${p.estoqueMinimo},${p.dataValidade}`
+      ).join("\n");
+    
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `estoque_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   // Função para ajustar estoque (poderia ser implementada mais tarde)
   const ajustarEstoque = (produto) => {
-    // Implementação futura
+    // Implementação futura - poderia chamar uma API específica
     alert(`Função para ajustar estoque do ingrediente ${produto.nome}`);
   };
 
@@ -457,130 +472,134 @@ export default function Estoque() {
         <div className={styles.stats_cards}>
           <div className={styles.stat_card}>
             <h3>Total de Ingredientes</h3>
-            <p className={styles.stat_value}>{getTotalProdutos()}</p>
+            <p className={styles.stat_value}>{stats.total_ingredientes || 0}</p>
           </div>
           <div className={styles.stat_card}>
             <h3>Valor em Estoque</h3>
             <p className={styles.stat_value}>
-              R$ {getValorTotalEstoque().toFixed(2).replace('.', ',')}
+              R$ {parseFloat(stats.valor_total_estoque || 0).toFixed(2).replace('.', ',')}
             </p>
           </div>
           <div className={styles.stat_card}>
             <h3>Baixo Estoque</h3>
             <p className={`${styles.stat_value} ${styles.warning_text}`}>
-              {getProdutosBaixoEstoque()}
+              {stats.baixo_estoque || 0}
             </p>
           </div>
           <div className={styles.stat_card}>
             <h3>Vencendo em 7 dias</h3>
             <p className={`${styles.stat_value} ${styles.warning_text}`}>
-              {getProdutosVencendo()}
+              {stats.vencendo || 0}
             </p>
           </div>
           <div className={styles.stat_card}>
             <h3>Esgotados</h3>
             <p className={`${styles.stat_value} ${styles.danger_text}`}>
-              {getProdutosEsgotados()}
+              {stats.esgotados || 0}
             </p>
           </div>
         </div>
 
         <div className={styles.table_container}>
-          <table className={styles.produtos_table}>
-            <thead>
-              <tr>
-                <th>Ingrediente</th>
-                <th>Código</th>
-                <th>Categoria</th>
-                <th>Preço (R$)</th>
-                <th>Estoque</th>
-                <th>Validade</th>
-                <th>Ações</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredProdutos.length > 0 ? (
-                filteredProdutos.map(produto => {
-                  const estoqueStatus = getEstoqueStatus(produto.quantidadeEstoque, produto.estoqueMinimo);
-                  const validadeStatus = verificarValidade(produto.dataValidade);
-                  
-                  return (
-                    <tr key={produto.id}>
-                      <td>
-                        <div className={styles.produto_info}>
-                          <img 
-                            src={produto.imagem} 
-                            alt={produto.nome} 
-                            className={styles.produto_imagem}
-                          />
-                          <div>
-                            <span className={styles.produto_nome}>{produto.nome}</span>
-                            <span className={styles.produto_descricao}>
-                              {produto.descricao.length > 60 
-                                ? produto.descricao.substring(0, 60) + '...' 
-                                : produto.descricao}
+          {loading ? (
+            <div className={styles.loading}>Carregando...</div>
+          ) : (
+            <table className={styles.produtos_table}>
+              <thead>
+                <tr>
+                  <th>Ingrediente</th>
+                  <th>Código</th>
+                  <th>Categoria</th>
+                  <th>Preço (R$)</th>
+                  <th>Estoque</th>
+                  <th>Validade</th>
+                  <th>Ações</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredProdutos.length > 0 ? (
+                  filteredProdutos.map(produto => {
+                    const estoqueStatus = getEstoqueStatus(produto.quantidadeEstoque, produto.estoqueMinimo);
+                    const validadeStatus = verificarValidade(produto.dataValidade);
+                    
+                    return (
+                      <tr key={produto.id}>
+                        <td>
+                          <div className={styles.produto_info}>
+                            <img 
+                              src={produto.imagem} 
+                              alt={produto.nome} 
+                              className={styles.produto_imagem}
+                            />
+                            <div>
+                              <span className={styles.produto_nome}>{produto.nome}</span>
+                              <span className={styles.produto_descricao}>
+                                {produto.descricao.length > 60 
+                                  ? produto.descricao.substring(0, 60) + '...' 
+                                  : produto.descricao}
+                              </span>
+                            </div>
+                          </div>
+                        </td>
+                        <td>{produto.codigo}</td>
+                        <td>{produto.categoria}</td>
+                        <td>R$ {produto.precoCompra.toFixed(2).replace('.', ',')}</td>
+                        <td>
+                          <div className={styles.estoque_info}>
+                            <span className={`${styles.estoque_badge} ${getEstoqueStatusClass(estoqueStatus)}`}>
+                              {produto.quantidadeEstoque} {produto.unidadeMedida}
+                              {estoqueStatus === "baixo" && (
+                                <AlertTriangle size={14} className={styles.estoque_icon} />
+                              )}
+                            </span>
+                            <span className={styles.estoque_minimo}>
+                              Min: {produto.estoqueMinimo}
                             </span>
                           </div>
-                        </div>
-                      </td>
-                      <td>{produto.codigo}</td>
-                      <td>{produto.categoria}</td>
-                      <td>R$ {produto.precoCompra.toFixed(2).replace('.', ',')}</td>
-                      <td>
-                        <div className={styles.estoque_info}>
-                          <span className={`${styles.estoque_badge} ${getEstoqueStatusClass(estoqueStatus)}`}>
-                            {produto.quantidadeEstoque} {produto.unidadeMedida}
-                            {estoqueStatus === "baixo" && (
-                              <AlertTriangle size={14} className={styles.estoque_icon} />
-                            )}
+                        </td>
+                        <td>
+                          <span className={`${getValidadeStatusClass(validadeStatus)}`}>
+                            {new Date(produto.dataValidade).toLocaleDateString('pt-BR')}
                           </span>
-                          <span className={styles.estoque_minimo}>
-                            Min: {produto.estoqueMinimo}
-                          </span>
-                        </div>
-                      </td>
-                      <td>
-                        <span className={`${getValidadeStatusClass(validadeStatus)}`}>
-                          {new Date(produto.dataValidade).toLocaleDateString('pt-BR')}
-                        </span>
-                      </td>
-                      <td>
-                        <div className={styles.action_buttons}>
-                          <button 
-                            className={`${styles.action_button} ${styles.view}`}
-                            title="Visualizar Detalhes"
-                            onClick={() => openDetalhesModal(produto)}
-                          >
-                            <Eye size={16} />
-                          </button>
-                          <button 
-                            className={`${styles.action_button} ${styles.edit}`}
-                            onClick={() => openModal(produto)}
-                            title="Editar Ingrediente"
-                          >
-                            <Edit size={16} />
-                          </button>
-                          <button 
-                            className={`${styles.action_button} ${styles.delete}`}
-                            onClick={() => handleDelete(produto.id)}
-                            title="Excluir Ingrediente"
-                          >
-                            <Trash2 size={16} />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })
-              ) : (
-                <tr>
-                  <td colSpan="7" className={styles.no_results}>
-                    Nenhum ingrediente encontrado
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
+                        </td>
+                        <td>
+                          <div className={styles.action_buttons}>
+                            <button 
+                              className={`${styles.action_button} ${styles.view}`}
+                              title="Visualizar Detalhes"
+                              onClick={() => openDetalhesModal(produto)}
+                            >
+                              <Eye size={16} />
+                            </button>
+                            <button 
+                              className={`${styles.action_button} ${styles.edit}`}
+                              onClick={() => openModal(produto)}
+                              title="Editar Ingrediente"
+                            >
+                              <Edit size={16} />
+                            </button>
+                            <button 
+                              className={`${styles.action_button} ${styles.delete}`}
+                              onClick={() => handleDelete(produto.id)}
+                              title="Excluir Ingrediente"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })
+                ) : (
+                  <tr>
+                    <td colSpan="7" className={styles.no_results}>
+                      Nenhum ingrediente encontrado
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          )}
         </div>
       </main>
 
@@ -799,7 +818,8 @@ export default function Estoque() {
                   </div>
                   <div>
                     <div className={styles.detail_label}>Estoque Mínimo</div>
-                    <div className={styles.detail_value}>{selectedProduto.estoqueMinimo} {selectedProduto.unidadeMedida}</div>
+                    <div className={styles.detail_value}>{
+                      selectedProduto.estoqueMinimo} {selectedProduto.unidadeMedida}</div>
                   </div>
                   <div>
                     <div className={styles.detail_label}>Fornecedor</div>
@@ -812,7 +832,7 @@ export default function Estoque() {
                   <div>
                     <div className={styles.detail_label}>Última Compra</div>
                     <div className={styles.detail_value}>
-                      {new Date(selectedProduto.dataUltimaCompra).toLocaleDateString('pt-BR')}
+                      {selectedProduto.dataUltimaCompra ? new Date(selectedProduto.dataUltimaCompra).toLocaleDateString('pt-BR') : '-'}
                     </div>
                   </div>
                   <div>
@@ -868,4 +888,3 @@ export default function Estoque() {
     </div>
   );
 }
-                  

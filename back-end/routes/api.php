@@ -8,6 +8,7 @@ use App\Http\Controllers\ItemController;
 use App\Http\Controllers\PizzaController;
 use App\Http\Controllers\OrderController;
 use App\Http\Controllers\ItemOrderController;
+use App\Http\Controllers\IngredientController; // <-- Adicione esta linha
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -28,6 +29,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/orders/for-user', [OrderController::class, 'storeForUser']);
     Route::get('/order-items/{orderId}', [ItemOrderController::class, 'getByOrderId']);
     Route::apiResource('item_order', ItemOrderController::class);
+    
+    // Rotas para gerenciamento de ingredientes - adicione este bloco
+    Route::apiResource('ingredients', IngredientController::class);
+    Route::get('/ingredient-categories', [IngredientController::class, 'categories']);
+    Route::get('/ingredient-stats', [IngredientController::class, 'stats']);
 });
 
 // Rotas públicas (fora do grupo auth:sanctum)

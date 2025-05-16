@@ -191,7 +191,7 @@ export default function Home() {
                             {/* Dados reais da API */}
                             <div className={`${styles.stat_card} ${styles.primary}`}>
                                 <div className={styles.stat_header}>
-                                    <h3>Vendas Hoje</h3>
+                                    <h3>Vendas</h3>
                                     <CircleDollarSign className={styles.stat_icon} />
                                 </div>
                                 <p className={styles.stat_value}>

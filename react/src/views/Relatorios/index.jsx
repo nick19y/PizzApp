@@ -1,8 +1,10 @@
 import { useState, useEffect } from "react";
 import axiosClient from "../../axios-client.js";
 import styles from "./Relatorios.module.css";
-import { BarChart, Bar, LineChart, Line, PieChart, Pie, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell, AreaChart, Area } from 'recharts';
-import { Calendar, Clock, DollarSign, ShoppingBag, TrendingUp, ChevronDown, Filter, Download, RefreshCw, ArrowUp, ArrowDown, Package, PieChart as PieChartIcon, BarChart as BarChartIcon } from 'lucide-react';
+import { BarChart, Bar, LineChart, Line, PieChart, Pie, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell } from 'recharts';
+import { Calendar, Clock, DollarSign, ShoppingBag, TrendingUp, ChevronDown, Filter, Download, RefreshCw, ArrowUp, ArrowDown, Package, PieChart as PieChartIcon, BarChart as BarChartIcon, LineChart as LineChartIcon, Save, FileText, X, LayoutGrid } from 'lucide-react';
+import { jsPDF } from "jspdf";
+import autoTable from 'jspdf-autotable';
 
 export default function Relatorios() {
   // Estados para armazenar dados do backend
@@ -18,40 +20,59 @@ export default function Relatorios() {
   // Estados para filtros
   const [periodoSelecionado, setPeriodoSelecionado] = useState('7d');
   const [filtroAberto, setFiltroAberto] = useState(false);
+  const [filtroAvancadoAberto, setFiltroAvancadoAberto] = useState(false);
+  const [graficoSelecionado, setGraficoSelecionado] = useState('vendas-por-dia');
+  const [limiteDados, setLimiteDados] = useState(10);
+  const [filtroCategoria, setFiltroCategoria] = useState('todas');
+  const [categorias, setCategorias] = useState([]);
+  const [ordenacao, setOrdenacao] = useState('valor-desc');
 
   // Carregar dados de vendas do backend
-  const carregarDadosVendas = async () => {
-    setIsLoading(true);
-    setErro(null);
+  // O problema principal é na parte da declaração do switch. 
+// No código original, parece que o "case" foi colocado fora da lógica do switch.
+// Versão corrigida do bloco do switch no método carregarDadosVendas:
+
+const carregarDadosVendas = async () => {
+  setIsLoading(true);
+  setErro(null);
+  
+  try {
+    // Determinar o período com base no filtro selecionado
+    const hoje = new Date();
+    let dataIni = new Date();
     
-    try {
-      // Determinar o período com base no filtro selecionado
-      const hoje = new Date();
-      let dataIni = new Date();
-      
-      switch (periodoSelecionado) {
-        case '1d':
-          dataIni = new Date(hoje);
-          break;
-        case '7d':
-          dataIni.setDate(hoje.getDate() - 7);
-          break;
-        case '15d':
-          dataIni.setDate(hoje.getDate() - 15);
-          break;
-        case '30d':
-          dataIni.setDate(hoje.getDate() - 30);
-          break;
-        case '90d':
-          dataIni.setDate(hoje.getDate() - 90);
-          break;
-        default:
-          dataIni.setDate(hoje.getDate() - 7);
-      }
+    switch (periodoSelecionado) {
+      case '1d':
+        dataIni = new Date(hoje);
+        break;
+      case '7d':
+        dataIni.setDate(hoje.getDate() - 7);
+        break;
+      case '15d':
+        dataIni.setDate(hoje.getDate() - 15);
+        break;
+      case '30d':
+        dataIni.setDate(hoje.getDate() - 30);
+        break;
+      case '90d':
+        dataIni.setDate(hoje.getDate() - 90);
+        break;
+      case '180d':
+        dataIni.setDate(hoje.getDate() - 180);
+        break;
+      case '365d':
+        dataIni.setDate(hoje.getDate() - 365);
+        break;
+      default:
+        dataIni.setDate(hoje.getDate() - 7);
+    }
       
       const params = {
         start_date: dataIni.toISOString().split('T')[0],
-        end_date: hoje.toISOString().split('T')[0]
+        end_date: hoje.toISOString().split('T')[0],
+        limit: limiteDados,
+        category: filtroCategoria !== 'todas' ? filtroCategoria : undefined,
+        order_by: ordenacao
       };
 
       // Fazer uma requisição simples
@@ -74,6 +95,12 @@ export default function Relatorios() {
       const vendasPorCategoria = await fetchSafe('/reports/sales-by-category');
       const vendasPorHorario = await fetchSafe('/reports/sales-by-hour');
       
+      // Extrair categorias únicas para o filtro
+      if (vendasPorCategoria && Array.isArray(vendasPorCategoria)) {
+        const categoriasUnicas = vendasPorCategoria.map(cat => cat.name);
+        setCategorias(categoriasUnicas);
+      }
+      
       // Armazenar os resultados diretamente
       setMaisVendidoRes(maisVendido);
       setEstatisticasRes(estatisticas);
@@ -90,24 +117,10 @@ export default function Relatorios() {
     }
   };
 
-  // Carregar dados apenas uma vez quando o componente montar
+  // Carregar dados apenas uma vez quando o componente montar ou quando os filtros mudarem
   useEffect(() => {
     carregarDadosVendas();
-  }, [periodoSelecionado]); // Atualizar quando o período mudar
-
-  // Apenas para depuração - mostrar os dados no console para verificar
-  useEffect(() => {
-    if (!isLoading) {
-      console.log("Dados carregados:", {
-        maisVendidoRes,
-        estatisticasRes,
-        vendasPorDiaRes,
-        vendasPorProdutoRes,
-        vendasPorCategoriaRes,
-        vendasPorHorarioRes
-      });
-    }
-  }, [isLoading, maisVendidoRes, estatisticasRes, vendasPorDiaRes, vendasPorProdutoRes, vendasPorCategoriaRes, vendasPorHorarioRes]);
+  }, [periodoSelecionado, limiteDados, filtroCategoria, ordenacao]);
 
   // Função auxiliar para formatar data
   const formatarData = (dataString) => {
@@ -145,71 +158,506 @@ export default function Relatorios() {
     );
   };
 
+  // Gerar PDF do relatório
+  const gerarPDF = () => {
+    const doc = new jsPDF();
+    
+    // Adicionar título
+    doc.setFontSize(20);
+    doc.text(`Relatório de Vendas - ${getTituloPeriodo()}`, 15, 15);
+    
+    // Adicionar informações gerais
+    doc.setFontSize(12);
+    doc.text(`Data do relatório: ${new Date().toLocaleDateString('pt-BR')}`, 15, 25);
+    doc.text(`Período: ${getTituloPeriodo()}`, 15, 32);
+    
+    // Adicionar estatísticas
+    if (estatisticasRes) {
+      doc.setFontSize(16);
+      doc.text('Resumo de Vendas', 15, 42);
+      
+      doc.setFontSize(12);
+      doc.text(`Vendas totais: ${formatarMoeda(estatisticasRes.current_period.total_sales)}`, 15, 52);
+      doc.text(`Pedidos totais: ${estatisticasRes.current_period.total_orders}`, 15, 59);
+      doc.text(`Ticket médio: ${formatarMoeda(estatisticasRes.current_period.average_ticket)}`, 15, 66);
+      
+      if (estatisticasRes.growth) {
+        doc.text(`Crescimento de vendas: ${estatisticasRes.growth.sales_growth}%`, 15, 73);
+        doc.text(`Crescimento de pedidos: ${estatisticasRes.growth.orders_growth}%`, 15, 80);
+        doc.text(`Crescimento do ticket médio: ${estatisticasRes.growth.ticket_growth}%`, 15, 87);
+      }
+    }
+    
+    // Adicionar produto mais vendido
+    if (maisVendidoRes) {
+      doc.setFontSize(16);
+      doc.text('Produto Mais Vendido', 15, 100);
+      
+      doc.setFontSize(12);
+      doc.text(`Produto: ${maisVendidoRes.item.name}`, 15, 110);
+      doc.text(`Categoria: ${maisVendidoRes.item.category}`, 15, 117);
+      doc.text(`Quantidade vendida: ${maisVendidoRes.quantity}`, 15, 124);
+      doc.text(`Valor total: ${formatarMoeda(maisVendidoRes.total_value)}`, 15, 131);
+    }
+    
+    // Adicionar tabela com base no gráfico selecionado
+    let tableY = 145;
+    
+    switch (graficoSelecionado) {
+      case 'vendas-por-dia': {
+        doc.setFontSize(16);
+        doc.text('Vendas por Dia', 15, tableY - 4);
+        
+        if (vendasPorDiaRes && vendasPorDiaRes.length > 0) {
+          const tableColumn = ["Data", "Vendas (R$)", "Pedidos"];
+          const tableRows = vendasPorDiaRes.map(item => [
+            item.name,
+            formatarMoeda(item.vendas),
+            item.pedidos
+          ]);
+          
+          autoTable(doc, {
+            head: [tableColumn],
+            body: tableRows,
+            startY: tableY,
+            theme: 'striped',
+            headStyles: { fillColor: [59, 130, 246] }
+          });
+        }
+        break;
+      }
+      
+      case 'vendas-por-produto': {
+        doc.setFontSize(16);
+        doc.text('Vendas por Produto', 15, tableY - 10);
+        
+        if (vendasPorProdutoRes && vendasPorProdutoRes.length > 0) {
+          const tableColumn = ["Produto", "Valor (R$)", "Quantidade"];
+          const tableRows = vendasPorProdutoRes.map(item => [
+            item.name,
+            formatarMoeda(item.valor),
+            item.quantidade
+          ]);
+          
+          autoTable(doc, {
+            head: [tableColumn],
+            body: tableRows,
+            startY: tableY,
+            theme: 'striped',
+            headStyles: { fillColor: [139, 92, 246] }
+          });
+        }
+        break;
+      }
+      
+      case 'vendas-por-categoria': {
+        doc.setFontSize(16);
+        doc.text('Vendas por Categoria', 15, tableY - 10);
+        
+        if (vendasPorCategoriaRes && vendasPorCategoriaRes.length > 0) {
+          const tableColumn = ["Categoria", "Valor (R$)", "Quantidade"];
+          const tableRows = vendasPorCategoriaRes.map(item => [
+            item.name,
+            formatarMoeda(item.valor),
+            item.quantidade
+          ]);
+          
+          autoTable(doc, {
+            head: [tableColumn],
+            body: tableRows,
+            startY: tableY,
+            theme: 'striped',
+            headStyles: { fillColor: [236, 72, 153] }
+          });
+        }
+        break;
+      }
+      
+      case 'vendas-por-horario': {
+        doc.setFontSize(16);
+        doc.text('Vendas por Horário', 15, tableY - 10);
+        
+        if (vendasPorHorarioRes && vendasPorHorarioRes.length > 0) {
+          const tableColumn = ["Horário", "Vendas (R$)", "Pedidos"];
+          const tableRows = vendasPorHorarioRes.map(item => [
+            item.name,
+            formatarMoeda(item.vendas),
+            item.pedidos
+          ]);
+          
+          autoTable(doc, {
+            head: [tableColumn],
+            body: tableRows,
+            startY: tableY,
+            theme: 'striped',
+            headStyles: { fillColor: [249, 115, 22] }
+          });
+        }
+        break;
+      }
+    }
+    
+    // Adicionar rodapé
+    const finalY = doc.lastAutoTable ? doc.lastAutoTable.finalY : 280;
+    doc.setFontSize(10);
+    doc.text('Relatório gerado automaticamente pelo sistema PizzApp', 15, finalY + 15);
+    doc.text(`Data e hora: ${new Date().toLocaleString('pt-BR')}`, 15, finalY + 22);
+    
+    // Salvar o PDF
+    doc.save(`relatorio_vendas_${new Date().toISOString().slice(0, 10)}.pdf`);
+  };
+
+  // Função para obter o título do período selecionado
+  const getTituloPeriodo = () => {
+    switch (periodoSelecionado) {
+      case '1d': return 'Hoje';
+      case '7d': return 'Últimos 7 dias';
+      case '15d': return 'Últimos 15 dias';
+      case '30d': return 'Últimos 30 dias';
+      case '90d': return 'Últimos 90 dias';
+      case '180d': return 'Últimos 180 dias';
+      case '365d': return 'Último ano';
+      default: return 'Últimos 7 dias';
+    }
+  };
+
+  // Renderizar o gráfico selecionado
+  const renderizarGraficoSelecionado = () => {
+    switch (graficoSelecionado) {
+      case 'vendas-por-dia':
+        return (
+          <div className={styles.report_card_full}>
+            <div className={styles.card_header}>
+              <h2>Vendas por Dia</h2>
+              <BarChartIcon size={20} className={styles.card_icon} />
+            </div>
+            {vendasPorDiaRes && vendasPorDiaRes.length > 0 ? (
+              <ResponsiveContainer width="100%" height={400}>
+                <BarChart
+                  data={vendasPorDiaRes}
+                  margin={{ top: 20, right: 30, left: 20, bottom: 50 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis 
+                    dataKey="name" 
+                    angle={-45} 
+                    textAnchor="end" 
+                    height={70}
+                    interval={0}
+                  />
+                  <YAxis yAxisId="left" orientation="left" stroke="#3b82f6" />
+                  <YAxis yAxisId="right" orientation="right" stroke="#10b981" />
+                  <Tooltip formatter={(value, name) => [name === 'vendas' ? formatarMoeda(value) : value, name === 'vendas' ? 'Vendas' : 'Pedidos']} />
+                  <Legend />
+                  <Bar 
+                    yAxisId="left" 
+                    dataKey="vendas" 
+                    fill="#3b82f6" 
+                    name="Vendas (R$)" 
+                    barSize={20}
+                  />
+                  <Bar 
+                    yAxisId="right" 
+                    dataKey="pedidos" 
+                    fill="#10b981" 
+                    name="Pedidos" 
+                    barSize={20}
+                  />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className={styles.no_data}>
+                <p>Sem dados para o período selecionado</p>
+              </div>
+            )}
+          </div>
+        );
+        
+      case 'vendas-por-produto':
+        return (
+          <div className={styles.report_card_full}>
+            <div className={styles.card_header}>
+              <h2>Vendas por Produto</h2>
+              <BarChartIcon size={20} className={styles.card_icon} />
+            </div>
+            {vendasPorProdutoRes && vendasPorProdutoRes.length > 0 ? (
+              <ResponsiveContainer width="100%" height={400}>
+                <BarChart
+                  data={vendasPorProdutoRes}
+                  layout="vertical"
+                  margin={{ top: 20, right: 30, left: 150, bottom: 20 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis type="number" />
+                  <YAxis 
+                    type="category" 
+                    dataKey="name" 
+                    width={140}
+                    tick={{ fontSize: 12 }}
+                  />
+                  <Tooltip formatter={(value, name) => [name === 'valor' ? formatarMoeda(value) : value, name === 'valor' ? 'Valor' : 'Quantidade']} />
+                  <Legend />
+                  <Bar dataKey="valor" fill="#8b5cf6" name="Valor (R$)" />
+                  <Bar dataKey="quantidade" fill="#ec4899" name="Quantidade" />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className={styles.no_data}>
+                <p>Sem dados para o período selecionado</p>
+              </div>
+            )}
+          </div>
+        );
+        
+      case 'vendas-por-categoria':
+        return (
+          <div className={styles.report_card_full}>
+            <div className={styles.card_header}>
+              <h2>Vendas por Categoria</h2>
+              <PieChartIcon size={20} className={styles.card_icon} />
+            </div>
+            {vendasPorCategoriaRes && vendasPorCategoriaRes.length > 0 ? (
+              <div className={styles.chart_container}>
+                <ResponsiveContainer width="100%" height={400}>
+                  <PieChart>
+                    <Pie
+                      data={vendasPorCategoriaRes}
+                      cx="50%"
+                      cy="50%"
+                      labelLine={true}
+                      label={({name, percent}) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                      outerRadius={150}
+                      fill="#8884d8"
+                      dataKey="valor"
+                    >
+                      {vendasPorCategoriaRes.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip formatter={(value) => [formatarMoeda(value), 'Valor']} />
+                    <Legend />
+                  </PieChart>
+                </ResponsiveContainer>
+                <div className={styles.chart_summary}>
+                  <h3>Resumo por Categoria</h3>
+                  <ul>
+                    {vendasPorCategoriaRes.map((item, index) => (
+                      <li key={index} className={styles.summary_item}>
+                        <span 
+                          className={styles.color_dot} 
+                          style={{ backgroundColor: COLORS[index % COLORS.length] }}
+                        ></span>
+                        <span className={styles.category_name}>{item.name}</span>
+                        <span className={styles.category_value}>{formatarMoeda(item.valor)}</span>
+                        <span className={styles.category_qty}>
+                          ({item.quantidade} {item.quantidade === 1 ? 'item' : 'itens'})
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            ) : (
+              <div className={styles.no_data}>
+                <p>Sem dados para o período selecionado</p>
+              </div>
+            )}
+          </div>
+        );
+        
+      case 'vendas-por-horario':
+        return (
+          <div className={styles.report_card_full}>
+            <div className={styles.card_header}>
+              <h2>Vendas por Horário</h2>
+              <LineChartIcon size={20} className={styles.card_icon} />
+            </div>
+            {vendasPorHorarioRes && vendasPorHorarioRes.length > 0 ? (
+              <ResponsiveContainer width="100%" height={400}>
+                <LineChart
+                  data={vendasPorHorarioRes}
+                  margin={{ top: 20, right: 30, left: 20, bottom: 20 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="name" />
+                  <YAxis yAxisId="left" orientation="left" stroke="#f97316" />
+                  <YAxis yAxisId="right" orientation="right" stroke="#0ea5e9" />
+                  <Tooltip formatter={(value, name) => [name === 'vendas' ? formatarMoeda(value) : value, name === 'vendas' ? 'Vendas' : 'Pedidos']} />
+                  <Legend />
+                  <Line 
+                    yAxisId="left" 
+                    type="monotone" 
+                    dataKey="vendas" 
+                    stroke="#f97316" 
+                    activeDot={{ r: 8 }} 
+                    name="Vendas (R$)" 
+                  />
+                  <Line 
+                    yAxisId="right" 
+                    type="monotone" 
+                    dataKey="pedidos" 
+                    stroke="#0ea5e9" 
+                    name="Pedidos" 
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className={styles.no_data}>
+                <p>Sem dados para o período selecionado</p>
+              </div>
+            )}
+          </div>
+        );
+        
+      default:
+        return (
+          <div className={styles.no_data}>
+            <p>Selecione um tipo de relatório</p>
+          </div>
+        );
+    }
+  };
+
   // Renderizar os dados com estilo
   return (
     <div className={styles.container}>
       <div className={styles.header}>
         <h1>Dashboard de Relatórios de Vendas</h1>
         
-        <div className={styles.period_selector}>
-          <div className={styles.period_current} onClick={() => setFiltroAberto(!filtroAberto)}>
-            <Calendar size={16} />
-            <span>
-              {periodoSelecionado === '1d' && 'Hoje'}
-              {periodoSelecionado === '7d' && 'Últimos 7 dias'}
-              {periodoSelecionado === '15d' && 'Últimos 15 dias'}
-              {periodoSelecionado === '30d' && 'Últimos 30 dias'}
-              {periodoSelecionado === '90d' && 'Últimos 90 dias'}
-            </span>
-            <ChevronDown size={16} className={filtroAberto ? styles.rotated : ''} />
+        <div className={styles.filters_row}>
+          <div className={styles.period_selector}>
+            <div className={styles.period_current} onClick={() => setFiltroAberto(!filtroAberto)}>
+              <Calendar size={16} />
+              <span>{getTituloPeriodo()}</span>
+              <ChevronDown size={16} className={filtroAberto ? styles.rotated : ''} />
+            </div>
+            
+            {filtroAberto && (
+              <div className={styles.period_dropdown}>
+                <div 
+                  className={`${styles.period_option} ${periodoSelecionado === '1d' ? styles.selected : ''}`}
+                  onClick={() => { setPeriodoSelecionado('1d'); setFiltroAberto(false); }}
+                >
+                  Hoje
+                </div>
+                <div 
+                  className={`${styles.period_option} ${periodoSelecionado === '7d' ? styles.selected : ''}`}
+                  onClick={() => { setPeriodoSelecionado('7d'); setFiltroAberto(false); }}
+                >
+                  Últimos 7 dias
+                </div>
+                <div 
+                  className={`${styles.period_option} ${periodoSelecionado === '15d' ? styles.selected : ''}`}
+                  onClick={() => { setPeriodoSelecionado('15d'); setFiltroAberto(false); }}
+                >
+                  Últimos 15 dias
+                </div>
+                <div 
+                  className={`${styles.period_option} ${periodoSelecionado === '30d' ? styles.selected : ''}`}
+                  onClick={() => { setPeriodoSelecionado('30d'); setFiltroAberto(false); }}
+                >
+                  Últimos 30 dias
+                </div>
+                <div 
+                  className={`${styles.period_option} ${periodoSelecionado === '90d' ? styles.selected : ''}`}
+                  onClick={() => { setPeriodoSelecionado('90d'); setFiltroAberto(false); }}
+                >
+                  Últimos 90 dias
+                </div>
+                <div 
+                  className={`${styles.period_option} ${periodoSelecionado === '180d' ? styles.selected : ''}`}
+                  onClick={() => { setPeriodoSelecionado('180d'); setFiltroAberto(false); }}
+                >
+                  Últimos 180 dias
+                </div>
+                <div 
+                  className={`${styles.period_option} ${periodoSelecionado === '365d' ? styles.selected : ''}`}
+                  onClick={() => { setPeriodoSelecionado('365d'); setFiltroAberto(false); }}
+                >
+                  Último ano
+                </div>
+              </div>
+            )}
           </div>
           
-          {filtroAberto && (
-            <div className={styles.period_dropdown}>
-              <div 
-                className={`${styles.period_option} ${periodoSelecionado === '1d' ? styles.selected : ''}`}
-                onClick={() => { setPeriodoSelecionado('1d'); setFiltroAberto(false); }}
-              >
-                Hoje
+          <div className={styles.filter_advanced}>
+            <button 
+              className={styles.filter_button} 
+              onClick={() => setFiltroAvancadoAberto(!filtroAvancadoAberto)}
+            >
+              <Filter size={16} />
+              Filtros Avançados
+              <ChevronDown size={16} className={filtroAvancadoAberto ? styles.rotated : ''} />
+            </button>
+            
+            {filtroAvancadoAberto && (
+              <div className={styles.advanced_filters_panel}>
+                <div className={styles.filter_row}>
+                  <div className={styles.filter_group}>
+                    <label>Limite de Dados</label>
+                    <select 
+                      value={limiteDados} 
+                      onChange={(e) => setLimiteDados(Number(e.target.value))}
+                    >
+                      <option value={5}>5 itens</option>
+                      <option value={10}>10 itens</option>
+                      <option value={20}>20 itens</option>
+                      <option value={50}>50 itens</option>
+                      <option value={100}>100 itens</option>
+                    </select>
+                  </div>
+                  
+                  <div className={styles.filter_group}>
+                    <label>Categoria</label>
+                    <select 
+                      value={filtroCategoria} 
+                      onChange={(e) => setFiltroCategoria(e.target.value)}
+                    >
+                      <option value="todas">Todas as categorias</option>
+                      {categorias.map((cat, index) => (
+                        <option key={index} value={cat}>{cat}</option>
+                      ))}
+                    </select>
+                  </div>
+                  
+                  <div className={styles.filter_group}>
+                    <label>Ordenação</label>
+                    <select 
+                      value={ordenacao} 
+                      onChange={(e) => setOrdenacao(e.target.value)}
+                    >
+                      <option value="valor-desc">Valor (maior para menor)</option>
+                      <option value="valor-asc">Valor (menor para maior)</option>
+                      <option value="quantidade-desc">Quantidade (maior para menor)</option>
+                      <option value="quantidade-asc">Quantidade (menor para maior)</option>
+                      <option value="alfabetica">Alfabética (A-Z)</option>
+                      <option value="alfabetica-desc">Alfabética (Z-A)</option>
+                    </select>
+                  </div>
+                </div>
+                
+                <button 
+                  className={styles.close_filters_button}
+                  onClick={() => setFiltroAvancadoAberto(false)}
+                >
+                  <X size={16} />
+                  Fechar Filtros
+                </button>
               </div>
-              <div 
-                className={`${styles.period_option} ${periodoSelecionado === '7d' ? styles.selected : ''}`}
-                onClick={() => { setPeriodoSelecionado('7d'); setFiltroAberto(false); }}
-              >
-                Últimos 7 dias
-              </div>
-              <div 
-                className={`${styles.period_option} ${periodoSelecionado === '15d' ? styles.selected : ''}`}
-                onClick={() => { setPeriodoSelecionado('15d'); setFiltroAberto(false); }}
-              >
-                Últimos 15 dias
-              </div>
-              <div 
-                className={`${styles.period_option} ${periodoSelecionado === '30d' ? styles.selected : ''}`}
-                onClick={() => { setPeriodoSelecionado('30d'); setFiltroAberto(false); }}
-              >
-                Últimos 30 dias
-              </div>
-              <div 
-                className={`${styles.period_option} ${periodoSelecionado === '90d' ? styles.selected : ''}`}
-                onClick={() => { setPeriodoSelecionado('90d'); setFiltroAberto(false); }}
-              >
-                Últimos 90 dias
-              </div>
-            </div>
-          )}
-        </div>
-        
-        <div className={styles.actions}>
-          <button className={`${styles.action_button} ${styles.refresh}`} onClick={carregarDadosVendas}>
-            <RefreshCw size={16} />
-            <span>Atualizar</span>
-          </button>
+            )}
+          </div>
           
-          <button className={`${styles.action_button} ${styles.export}`}>
-            <Download size={16} />
-            <span>Exportar</span>
-          </button>
+          <div className={styles.actions}>
+            <button className={`${styles.action_button} ${styles.refresh}`} onClick={carregarDadosVendas}>
+              <RefreshCw size={16} />
+              <span>Atualizar</span>
+            </button>
+            
+            <button className={`${styles.action_button} ${styles.export}`} onClick={gerarPDF}>
+              <FileText size={16} />
+              <span>Exportar PDF</span>
+            </button>
+          </div>
         </div>
       </div>
       
@@ -265,171 +713,161 @@ export default function Relatorios() {
             </div>
           )}
           
-          <div className={styles.reports_grid}>
+          {/* Seletor de tipo de gráfico */}
+          <div className={styles.chart_selector}>
+            <div className={styles.selector_header}>
+              <h2>Selecione o tipo de relatório</h2>
+            </div>
+            <div className={styles.chart_buttons}>
+              <button 
+                className={`${styles.chart_button} ${graficoSelecionado === 'vendas-por-dia' ? styles.selected : ''}`}
+                onClick={() => setGraficoSelecionado('vendas-por-dia')}
+              >
+                <BarChartIcon size={20} />
+                <span>Vendas por Dia</span>
+              </button>
+              
+              <button 
+                className={`${styles.chart_button} ${graficoSelecionado === 'vendas-por-produto' ? styles.selected : ''}`}
+                onClick={() => setGraficoSelecionado('vendas-por-produto')}
+              >
+                <BarChartIcon size={20} />
+                <span>Vendas por Produto</span>
+              </button>
+              
+              <button 
+                className={`${styles.chart_button} ${graficoSelecionado === 'vendas-por-categoria' ? styles.selected : ''}`}
+                onClick={() => setGraficoSelecionado('vendas-por-categoria')}
+              >
+                <PieChartIcon size={20} />
+                <span>Vendas por Categoria</span>
+              </button>
+              
+              <button 
+                className={`${styles.chart_button} ${graficoSelecionado === 'vendas-por-horario' ? styles.selected : ''}`}
+                onClick={() => setGraficoSelecionado('vendas-por-horario')}
+              >
+                <LineChartIcon size={20} />
+                <span>Vendas por Horário</span>
+              </button>
+            </div>
+          </div>
+          
+          {/* Área do gráfico */}
+          <div className={styles.chart_area}>
+            {renderizarGraficoSelecionado()}
+          </div>
+          
+          {/* Produto mais vendido e estatísticas resumidas em cards */}
+          <div className={styles.info_cards}>
             {/* Produto Mais Vendido */}
-            <div className={`${styles.report_card} ${styles.most_sold}`}>
-              <h2>Produto Mais Vendido</h2>
-              {maisVendidoRes && (
-                <div>
-                  <p><span className={styles.highlight}>Produto:</span> {maisVendidoRes.item.name}</p>
-                  <p><span className={styles.highlight}>Descrição:</span> {maisVendidoRes.item.description}</p>
-                  <p><span className={styles.highlight}>Categoria:</span> {maisVendidoRes.item.category}</p>
-                  <p><span className={styles.highlight}>Quantidade vendida:</span> {maisVendidoRes.quantity}</p>
-                  <p><span className={styles.highlight}>Valor total:</span> R$ {maisVendidoRes.total_value}</p>
+            <div className={styles.info_card}>
+              <div className={styles.card_header}>
+                <h2>Produto Mais Vendido</h2>
+                <Package size={20} className={styles.card_icon} />
+              </div>
+              {maisVendidoRes ? (
+                <div className={styles.best_seller}>
+                  <div className={styles.product_info}>
+                    <h3>{maisVendidoRes.item.name}</h3>
+                    <p className={styles.product_description}>{maisVendidoRes.item.description}</p>
+                  </div>
+                  <div className={styles.sales_info}>
+                    <div className={styles.info_item}>
+                      <span className={styles.info_label}>Categoria</span>
+                      <span className={styles.info_value}>{maisVendidoRes.item.category}</span>
+                    </div>
+                    <div className={styles.info_item}>
+                      <span className={styles.info_label}>Quantidade</span>
+                      <span className={styles.info_value}>{maisVendidoRes.quantity}</span>
+                    </div>
+                    <div className={styles.info_item}>
+                      <span className={styles.info_label}>Valor Total</span>
+                      <span className={styles.info_value}>{formatarMoeda(maisVendidoRes.total_value)}</span>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className={styles.no_data}>
+                  <p>Sem dados para o período selecionado</p>
                 </div>
               )}
             </div>
             
             {/* Estatísticas de Vendas */}
-            <div className={`${styles.report_card} ${styles.sales_stats}`}>
-              <h2>Estatísticas de Vendas</h2>
-              {estatisticasRes && (
-                <div>
-                  <h3>Período Atual</h3>
-                  <p><span className={styles.highlight}>Vendas totais:</span> R$ {estatisticasRes.current_period.total_sales}</p>
-                  <p><span className={styles.highlight}>Pedidos totais:</span> {estatisticasRes.current_period.total_orders}</p>
-                  <p><span className={styles.highlight}>Ticket médio:</span> R$ {estatisticasRes.current_period.average_ticket}</p>
-                  
-                  <h3>Crescimento</h3>
-                  <p><span className={styles.highlight}>Crescimento de vendas:</span> {estatisticasRes.growth.sales_growth}%</p>
-                  <p><span className={styles.highlight}>Crescimento de pedidos:</span> {estatisticasRes.growth.orders_growth}%</p>
-                  <p><span className={styles.highlight}>Crescimento do ticket médio:</span> {estatisticasRes.growth.ticket_growth}%</p>
-                </div>
-              )}
-            </div>
-            
-            {/* Vendas por Dia */}
-            <div className={`${styles.report_card} ${styles.daily_sales}`}>
-              <h2>Vendas por Dia</h2>
-              {vendasPorDiaRes && vendasPorDiaRes.length > 0 ? (
-                <ResponsiveContainer width="100%" height={250}>
-                  <BarChart
-                    data={vendasPorDiaRes}
-                    margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
-                  >
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="name" />
-                    <YAxis />
-                    <Tooltip formatter={(value) => [`R$ ${value}`, 'Vendas']} />
-                    <Legend />
-                    <Bar dataKey="vendas" fill="#3b82f6" name="Vendas (R$)" />
-                    <Bar dataKey="pedidos" fill="#10b981" name="Pedidos" />
-                  </BarChart>
-                </ResponsiveContainer>
-              ) : (
-                <p className={styles.no_data}>Sem dados para o período selecionado</p>
-              )}
-            </div>
-            
-            {/* Vendas por Produto */}
-            <div className={`${styles.report_card} ${styles.product_sales}`}>
-              <h2>Vendas por Produto</h2>
-              {vendasPorProdutoRes && vendasPorProdutoRes.length > 0 ? (
-                <ResponsiveContainer width="100%" height={250}>
-                  <BarChart
-                    data={vendasPorProdutoRes}
-                    layout="vertical"
-                    margin={{ top: 5, right: 30, left: 50, bottom: 5 }}
-                  >
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis type="number" />
-                    <YAxis type="category" dataKey="name" />
-                    <Tooltip formatter={(value, name) => [name === 'valor' ? formatarMoeda(value) : value, name === 'valor' ? 'Valor' : 'Quantidade']} />
-                    <Legend />
-                    <Bar dataKey="valor" fill="#8b5cf6" name="Valor (R$)" />
-                    <Bar dataKey="quantidade" fill="#ec4899" name="Quantidade" />
-                  </BarChart>
-                </ResponsiveContainer>
-              ) : (
-                <p className={styles.no_data}>Sem dados para o período selecionado</p>
-              )}
-            </div>
-            
-            {/* Vendas por Categoria */}
-            <div className={`${styles.report_card} ${styles.category_sales}`}>
-              <h2>Vendas por Categoria</h2>
-              {vendasPorCategoriaRes && vendasPorCategoriaRes.length > 0 ? (
-                <div className={styles.chart_container}>
-                  <ResponsiveContainer width="100%" height={250}>
-                    <PieChart>
-                      <Pie
-                        data={vendasPorCategoriaRes}
-                        cx="50%"
-                        cy="50%"
-                        labelLine={false}
-                        label={({name, valor}) => `${name}: R$ ${valor}`}
-                        outerRadius={80}
-                        fill="#8884d8"
-                        dataKey="valor"
-                      >
-                        {vendasPorCategoriaRes.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                        ))}
-                      </Pie>
-                      <Tooltip formatter={(value) => [formatarMoeda(value), 'Valor']} />
-                      <Legend />
-                    </PieChart>
-                  </ResponsiveContainer>
-                  <div className={styles.chart_summary}>
-                    <h3>Resumo por Categoria</h3>
-                    <ul>
-                      {vendasPorCategoriaRes.map((item, index) => (
-                        <li key={index}>
-                          <span className={styles.category_name}>{item.name}:</span> 
-                          <span className={styles.category_value}>{formatarMoeda(item.valor)}</span>
-                          <span className={styles.category_qty}>({item.quantidade} {item.quantidade === 1 ? 'item' : 'itens'})</span>
-                        </li>
-                      ))}
-                    </ul>
+            <div className={styles.info_card}>
+              <div className={styles.card_header}>
+                <h2>Estatísticas Detalhadas</h2>
+                <DollarSign size={20} className={styles.card_icon} />
+              </div>
+              {estatisticasRes ? (
+                <div className={styles.detailed_stats}>
+                  <div className={styles.stats_section}>
+                    <h3>Período Atual</h3>
+                    <div className={styles.stats_grid}>
+                      <div className={styles.stat_item}>
+                        <span className={styles.stat_label}>Vendas totais:</span>
+                        <span className={styles.stat_highlight}>{formatarMoeda(estatisticasRes.current_period.total_sales)}</span>
+                      </div>
+                      <div className={styles.stat_item}>
+                        <span className={styles.stat_label}>Pedidos totais:</span>
+                        <span className={styles.stat_highlight}>{estatisticasRes.current_period.total_orders}</span>
+                      </div>
+                      <div className={styles.stat_item}>
+                        <span className={styles.stat_label}>Ticket médio:</span>
+                        <span className={styles.stat_highlight}>{formatarMoeda(estatisticasRes.current_period.average_ticket)}</span>
+                      </div>
+                    </div>
                   </div>
+                  
+                  {/* <div className={styles.stats_section}>
+                    <h3>Crescimento</h3>
+                    <div className={styles.stats_grid}>
+                      <div className={styles.stat_item}>
+                        <span className={styles.stat_label}>Vendas:</span>
+                        <span className={`${styles.stat_growth} ${estatisticasRes.growth.sales_growth > 0 ? styles.positive : estatisticasRes.growth.sales_growth < 0 ? styles.negative : ''}`}>
+                          {estatisticasRes.growth.sales_growth > 0 ? <ArrowUp size={14} /> : estatisticasRes.growth.sales_growth < 0 ? <ArrowDown size={14} /> : null}
+                          {Math.abs(estatisticasRes.growth.sales_growth)}%
+                        </span>
+                      </div>
+                      <div className={styles.stat_item}>
+                        <span className={styles.stat_label}>Pedidos:</span>
+                        <span className={`${styles.stat_growth} ${estatisticasRes.growth.orders_growth > 0 ? styles.positive : estatisticasRes.growth.orders_growth < 0 ? styles.negative : ''}`}>
+                          {estatisticasRes.growth.orders_growth > 0 ? <ArrowUp size={14} /> : estatisticasRes.growth.orders_growth < 0 ? <ArrowDown size={14} /> : null}
+                          {Math.abs(estatisticasRes.growth.orders_growth)}%
+                        </span>
+                      </div>
+                      <div className={styles.stat_item}>
+                        <span className={styles.stat_label}>Ticket médio:</span>
+                        <span className={`${styles.stat_growth} ${estatisticasRes.growth.ticket_growth > 0 ? styles.positive : estatisticasRes.growth.ticket_growth < 0 ? styles.negative : ''}`}>
+                          {estatisticasRes.growth.ticket_growth > 0 ? <ArrowUp size={14} /> : estatisticasRes.growth.ticket_growth < 0 ? <ArrowDown size={14} /> : null}
+                          {Math.abs(estatisticasRes.growth.ticket_growth)}%
+                        </span>
+                      </div>
+                    </div>
+                  </div> */}
                 </div>
               ) : (
-                <p className={styles.no_data}>Sem dados para o período selecionado</p>
-              )}
-            </div>
-            
-            {/* Vendas por Horário */}
-            <div className={`${styles.report_card} ${styles.hourly_sales}`}>
-              <h2>Vendas por Horário</h2>
-              {vendasPorHorarioRes && vendasPorHorarioRes.length > 0 ? (
-                <ResponsiveContainer width="100%" height={250}>
-                  <LineChart
-                    data={vendasPorHorarioRes}
-                    margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
-                  >
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="name" />
-                    <YAxis yAxisId="left" />
-                    <YAxis yAxisId="right" orientation="right" />
-                    <Tooltip formatter={(value, name) => [name === 'vendas' ? formatarMoeda(value) : value, name === 'vendas' ? 'Vendas' : 'Pedidos']} />
-                    <Legend />
-                    <Line 
-                      yAxisId="left" 
-                      type="monotone" 
-                      dataKey="vendas" 
-                      stroke="#f97316" 
-                      activeDot={{ r: 8 }} 
-                      name="Vendas (R$)" 
-                    />
-                    <Line 
-                      yAxisId="right" 
-                      type="monotone" 
-                      dataKey="pedidos" 
-                      stroke="#0ea5e9" 
-                      name="Pedidos" 
-                    />
-                  </LineChart>
-                </ResponsiveContainer>
-              ) : (
-                <p className={styles.no_data}>Sem dados para o período selecionado</p>
+                <div className={styles.no_data}>
+                  <p>Sem dados para o período selecionado</p>
+                </div>
               )}
             </div>
           </div>
           
-          <button className={styles.button} onClick={carregarDadosVendas}>
-            Recarregar Dados
-          </button>
-        </>
+          <div className={styles.footer}>
+            <div className={styles.footer_content}>
+              <p>Dados atualizados em: {new Date().toLocaleDateString('pt-BR')} às {new Date().toLocaleTimeString('pt-BR')}</p>
+              <button 
+                className={styles.button} 
+                onClick={carregarDadosVendas}
+              >
+                <RefreshCw size={16} />
+                Recarregar Dados
+              </button>
+            </div>
+          </div>
+          </>
       )}
     </div>
   );

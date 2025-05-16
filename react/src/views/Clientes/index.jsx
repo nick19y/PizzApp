@@ -135,17 +135,17 @@ export default function Clientes() {
     }
   };
 
-  const handleDelete = async (id) => {
-    if (window.confirm("Tem certeza que deseja excluir este cliente?")) {
-      try {
-        await axiosClient.delete(`/clients/${id}`);
-        await fetchClientes();
-      } catch (err) {
-        console.error("Erro ao excluir cliente:", err);
-        alert("Ocorreu um erro ao excluir o cliente.");
-      }
-    }
-  };
+  // const handleDelete = async (id) => {
+  //   if (window.confirm("Tem certeza que deseja excluir este cliente?")) {
+  //     try {
+  //       await axiosClient.delete(`/clients/${id}`);
+  //       await fetchClientes();
+  //     } catch (err) {
+  //       console.error("Erro ao excluir cliente:", err);
+  //       alert("Ocorreu um erro ao excluir o cliente.");
+  //     }
+  //   }
+  // };
 
   // Função para formatar a data
   const formatDate = (dateString) => {
@@ -242,13 +242,13 @@ export default function Clientes() {
                           >
                             <Edit size={16} />
                           </button>
-                          <button 
+                          {/* <button 
                             className={`${styles.action_button} ${styles.delete}`}
                             onClick={() => handleDelete(cliente.id)}
                             title="Excluir Cliente"
                           >
                             <Trash2 size={16} />
-                          </button>
+                          </button> */}
                         </div>
                       </td>
                     </tr>

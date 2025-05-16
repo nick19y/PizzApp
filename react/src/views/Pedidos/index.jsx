@@ -585,8 +585,38 @@ export default function Pedidos() {
           total_amount: totalAmount 
         });
       } else {
-        // Código existente para criar um novo pedido
-        // ...
+        // Criar um novo pedido
+        // Preparar os itens no formato esperado pelo backend
+        const itemsData = selectedItems.map(item => ({
+          item_id: item.specific_details.item_id,
+          size: item.size,
+          quantity: item.quantity,
+          special_instructions: item.special_instructions || null
+        }));
+
+        // Montar o payload para a API
+        const orderData = {
+          user_id: formData.user_id, // Este campo é obrigatório para a rota /orders/for-user
+          delivery_address: formData.delivery_address,
+          contact_phone: formData.contact_phone,
+          notes: formData.notes,
+          delivery_time: formData.delivery_time,
+          payment_method: formData.payment_method,
+          items: itemsData
+        };
+
+        console.log("Criando novo pedido:", orderData);
+        
+        // Verificar se o user_id está preenchido para usar a rota correta
+        if (formData.user_id) {
+          response = await axiosClient.post('/orders/for-user', orderData);
+        } else {
+          alert("É necessário selecionar um cliente para criar um pedido.");
+          setLoading(false);
+          return;
+        }
+        
+        console.log("Resposta da criação:", response.data);
       }
 
       // Atualizar lista de pedidos e fechar modal
@@ -599,6 +629,10 @@ export default function Pedidos() {
       // O restante do código de tratamento de erros permanece o mesmo...
     } finally {
       setLoading(false);
+      closeModal();
+      fetchPedidos();
+      fetchItens();
+      fetchClientes();
     }
   };
 

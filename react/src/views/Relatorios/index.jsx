@@ -27,10 +27,29 @@ export default function Relatorios() {
   const [categorias, setCategorias] = useState([]);
   const [ordenacao, setOrdenacao] = useState('valor-desc');
 
-  // Carregar dados de vendas do backend
-  // O problema principal é na parte da declaração do switch. 
-// No código original, parece que o "case" foi colocado fora da lógica do switch.
-// Versão corrigida do bloco do switch no método carregarDadosVendas:
+  const ajustarDadosHorario = (dados) => {
+    if (!dados || !Array.isArray(dados)) return [];
+    
+    return dados.map(item => {
+      if (item.name && item.name.includes(':')) {
+        const hora = parseInt(item.name.split(':')[0], 10);
+        let horaAjustada = hora - 3;
+        
+        if (horaAjustada < 0) {
+          horaAjustada += 24;
+        }
+        
+        // Formata com dois dígitos
+        const horaFormatada = `${horaAjustada.toString().padStart(2, '0')}:00`;
+        
+        return {
+          ...item,
+          name: horaFormatada
+        };
+      }
+      return item;
+    });
+  };
 
 const carregarDadosVendas = async () => {
   setIsLoading(true);
@@ -181,11 +200,11 @@ const carregarDadosVendas = async () => {
       doc.text(`Pedidos totais: ${estatisticasRes.current_period.total_orders}`, 15, 59);
       doc.text(`Ticket médio: ${formatarMoeda(estatisticasRes.current_period.average_ticket)}`, 15, 66);
       
-      if (estatisticasRes.growth) {
-        doc.text(`Crescimento de vendas: ${estatisticasRes.growth.sales_growth}%`, 15, 73);
-        doc.text(`Crescimento de pedidos: ${estatisticasRes.growth.orders_growth}%`, 15, 80);
-        doc.text(`Crescimento do ticket médio: ${estatisticasRes.growth.ticket_growth}%`, 15, 87);
-      }
+      // if (estatisticasRes.growth) {
+      //   doc.text(`Crescimento de vendas: ${estatisticasRes.growth.sales_growth}%`, 15, 73);
+      //   doc.text(`Crescimento de pedidos: ${estatisticasRes.growth.orders_growth}%`, 15, 80);
+      //   doc.text(`Crescimento do ticket médio: ${estatisticasRes.growth.ticket_growth}%`, 15, 87);
+      // }
     }
     
     // Adicionar produto mais vendido
@@ -252,7 +271,7 @@ const carregarDadosVendas = async () => {
       
       case 'vendas-por-categoria': {
         doc.setFontSize(16);
-        doc.text('Vendas por Categoria', 15, tableY - 10);
+        doc.text('Vendas por Categoria', 15, tableY - 4);
         
         if (vendasPorCategoriaRes && vendasPorCategoriaRes.length > 0) {
           const tableColumn = ["Categoria", "Valor (R$)", "Quantidade"];
@@ -347,7 +366,13 @@ const carregarDadosVendas = async () => {
                   />
                   <YAxis yAxisId="left" orientation="left" stroke="#3b82f6" />
                   <YAxis yAxisId="right" orientation="right" stroke="#10b981" />
-                  <Tooltip formatter={(value, name) => [name === 'vendas' ? formatarMoeda(value) : value, name === 'vendas' ? 'Vendas' : 'Pedidos']} />
+                  <Tooltip 
+                    formatter={(value, name) => {
+                      if (name === 'vendas') return [formatarMoeda(value), 'Vendas (R$)'];
+                      if (name === 'pedidos') return [value, 'Pedidos'];
+                      return [value, name];
+                    }} 
+                  />
                   <Legend />
                   <Bar 
                     yAxisId="left" 
@@ -395,7 +420,13 @@ const carregarDadosVendas = async () => {
                     width={140}
                     tick={{ fontSize: 12 }}
                   />
-                  <Tooltip formatter={(value, name) => [name === 'valor' ? formatarMoeda(value) : value, name === 'valor' ? 'Valor' : 'Quantidade']} />
+                  <Tooltip 
+  formatter={(value, name) => {
+    if (name === 'valor') return [formatarMoeda(value), 'Valor (R$)'];
+    if (name === 'quantidade') return [value, 'Quantidade'];
+    return [value, name];
+  }} 
+/>
                   <Legend />
                   <Bar dataKey="valor" fill="#8b5cf6" name="Valor (R$)" />
                   <Bar dataKey="quantidade" fill="#ec4899" name="Quantidade" />
@@ -475,14 +506,40 @@ const carregarDadosVendas = async () => {
             {vendasPorHorarioRes && vendasPorHorarioRes.length > 0 ? (
               <ResponsiveContainer width="100%" height={400}>
                 <LineChart
-                  data={vendasPorHorarioRes}
+                  data={vendasPorHorarioRes.map(item => {
+                    // Ajuste do fuso horário: subtrair 3 horas
+                    if (item.name && item.name.includes(':')) {
+                      const hora = parseInt(item.name.split(':')[0], 10);
+                      let horaAjustada = hora - 3;
+                      
+                      // Se ficar negativo, ajusta para o formato 24h
+                      if (horaAjustada < 0) {
+                        horaAjustada += 24;
+                      }
+                      
+                      // Formata com zero à esquerda quando necessário
+                      const horaFormatada = `${horaAjustada.toString().padStart(2, '0')}:00`;
+                      
+                      return {
+                        ...item,
+                        name: horaFormatada
+                      };
+                    }
+                    return item;
+                  })}
                   margin={{ top: 20, right: 30, left: 20, bottom: 20 }}
                 >
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="name" />
                   <YAxis yAxisId="left" orientation="left" stroke="#f97316" />
                   <YAxis yAxisId="right" orientation="right" stroke="#0ea5e9" />
-                  <Tooltip formatter={(value, name) => [name === 'vendas' ? formatarMoeda(value) : value, name === 'vendas' ? 'Vendas' : 'Pedidos']} />
+                  <Tooltip 
+                    formatter={(value, name) => {
+                      if (name === 'vendas') return [formatarMoeda(value), 'Vendas (R$)'];
+                      if (name === 'pedidos') return [value, 'Pedidos'];
+                      return [value, name];
+                    }} 
+                  />
                   <Legend />
                   <Line 
                     yAxisId="left" 
@@ -507,16 +564,16 @@ const carregarDadosVendas = async () => {
               </div>
             )}
           </div>
-        );
-        
-      default:
-        return (
-          <div className={styles.no_data}>
-            <p>Selecione um tipo de relatório</p>
-          </div>
-        );
-    }
-  };
+              );
+              
+            default:
+              return (
+                <div className={styles.no_data}>
+                  <p>Selecione um tipo de relatório</p>
+                </div>
+              );
+          }
+        };
 
   // Renderizar os dados com estilo
   return (

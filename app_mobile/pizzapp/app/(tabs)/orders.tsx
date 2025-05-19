@@ -12,9 +12,31 @@ import {
   Divider,
   Center,
   Button,
-  useToast
+  useToast,
+  IPressableProps
 } from "native-base";
 import { Ionicons } from "@expo/vector-icons";
+
+// Interfaces para tipagem
+interface OrderItem {
+  name: string;
+  quantity: number;
+  price: number;
+}
+
+interface Order {
+  id: string;
+  date: string;
+  time: string;
+  status: string;
+  total: number;
+  items: OrderItem[];
+}
+
+interface OrderItemProps {
+  order: Order;
+  onPress: () => void;
+}
 
 // Definir cores para corresponder ao tema web
 const colors = {
@@ -26,7 +48,7 @@ const colors = {
 };
 
 // Dados de exemplo para pedidos
-const orderData = [
+const orderData: Order[] = [
   {
     id: "1001",
     date: "13 Abr, 2025",
@@ -65,8 +87,8 @@ const orderData = [
 ];
 
 // Componente para cada item de pedido
-const OrderItem = ({ order, onPress }) => {
-  const getStatusColor = (status) => {
+const OrderItem: React.FC<OrderItemProps> = ({ order, onPress }) => {
+  const getStatusColor = (status: string): string => {
     switch (status) {
       case "Em preparação":
         return colors.primary;
@@ -79,7 +101,7 @@ const OrderItem = ({ order, onPress }) => {
     }
   };
 
-  const getStatusBgColor = (status) => {
+  const getStatusBgColor = (status: string): string => {
     switch (status) {
       case "Em preparação":
         return `${colors.primary}20`;
@@ -171,15 +193,15 @@ const OrderItem = ({ order, onPress }) => {
   );
 };
 
-export default function Orders() {
-  const [activeTab, setActiveTab] = useState("all");
+const Orders: React.FC = () => {
+  const [activeTab, setActiveTab] = useState<"all" | "active">("all");
   const toast = useToast();
 
   const filteredOrders = activeTab === "active" 
     ? orderData.filter(order => order.status !== "Entregue") 
     : orderData;
 
-  const handleOrderPress = (order) => {
+  const handleOrderPress = (order: Order): void => {
     toast.show({
       description: `Detalhes do pedido #${order.id}`,
       placement: "top"
@@ -283,4 +305,6 @@ export default function Orders() {
       </Box>
     </VStack>
   );
-}
+};
+
+export default Orders;

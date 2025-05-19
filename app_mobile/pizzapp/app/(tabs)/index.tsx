@@ -12,12 +12,27 @@ import {
   Badge,
   Button,
   Center,
-  useTheme
+  useTheme,
+  IPressableProps
 } from "native-base";
 import { Ionicons } from "@expo/vector-icons";
 
+// Interfaces para tipagem
+interface OngoingOrder {
+  id: string;
+  date: string;
+  status: string;
+  estimatedTime: string;
+}
+
+interface LucideIconProps {
+  name: string;
+  color: string;
+  size: string | number;
+}
+
 // Dados simulados de pedidos em andamento
-const ongoingOrders = [
+const ongoingOrders: OngoingOrder[] = [
   {
     id: "PED-1234",
     date: "16 de maio de 2025",
@@ -27,9 +42,9 @@ const ongoingOrders = [
 ];
 
 // Componente personalizado para ícones consistentes com Lucide
-const LucideIcon = ({ name, color, size }) => {
+const LucideIcon: React.FC<LucideIconProps> = ({ name, color, size }) => {
   // Mapeamento de ícones do Lucide para Ionicons
-  const iconMap = {
+  const iconMap: Record<string, string> = {
     "pizza": "pizza-outline",
     "cart": "cart-outline",
     "time": "time-outline",
@@ -45,7 +60,7 @@ const LucideIcon = ({ name, color, size }) => {
   );
 };
 
-export default function Home() {
+const Home: React.FC = () => {
   const theme = useTheme();
   
   // Cores customizadas para combinar com o tema web
@@ -75,27 +90,6 @@ export default function Home() {
           <Icon as={Ionicons} name="pizza-outline" size="md" color={colors.primary} />
           <Heading size="md" color="white">PizzApp</Heading>
         </HStack>
-        
-        {/* <HStack space={4} alignItems="center">
-          <Pressable>
-            <Badge 
-              rounded="full" 
-              bg={colors.primary} 
-              _text={{ color: "white" }}
-              variant="solid" 
-              size="sm"
-              mb={-4}
-              mr={-2}
-              zIndex={1}
-              position="absolute"
-              top={-2}
-              right={-2}
-            >
-              2
-            </Badge>
-            <Icon as={Ionicons} name="cart-outline" size="md" color="white" />
-          </Pressable> 
-        </HStack> */}
       </HStack>
 
       <ScrollView showsVerticalScrollIndicator={false}>
@@ -335,4 +329,6 @@ export default function Home() {
       </ScrollView>
     </VStack>
   );
-}
+};
+
+export default Home;

@@ -13,12 +13,43 @@ import {
   Center,
   useToast,
   StatusBar,
-  Flex
+  IPressableProps,
+  IBoxProps,
+  ITextProps
 } from "native-base";
 import { Ionicons } from "@expo/vector-icons";
 
+// Definindo interfaces para tipagem
+interface PizzariaHorario {
+  segunda: string;
+  terca: string;
+  quarta: string;
+  quinta: string;
+  sexta: string;
+  sabado: string;
+  domingo: string;
+}
+
+interface RedesSociais {
+  instagram: string;
+  facebook: string;
+  twitter: string;
+}
+
+interface PizzariaInfo {
+  nome: string;
+  endereco: string;
+  cidade: string;
+  cep: string;
+  telefone: string;
+  whatsapp: string;
+  email: string;
+  horario: PizzariaHorario;
+  redesSociais: RedesSociais;
+}
+
 // Informações da pizzaria
-const pizzariaInfo = {
+const pizzariaInfo: PizzariaInfo = {
   nome: "PizzApp",
   endereco: "Rua Principal, 123 - Centro",
   cidade: "São Paulo, SP",
@@ -56,8 +87,38 @@ const colors = {
   grayLight: "#e2e8f0"
 };
 
+// Interfaces para componentes
+interface InfoCardProps extends IBoxProps {
+  title: string;
+  icon: string;
+  children: React.ReactNode;
+  mb?: number | string;
+}
+
+interface ContactItemProps {
+  icon: string;
+  title: string;
+  value: string;
+  actionIcon: string;
+  onPress: () => void;
+  color?: string;
+}
+
+interface ScheduleItemProps {
+  day: string;
+  hours: string;
+  isOpen?: boolean;
+}
+
+interface SocialButtonProps {
+  icon: string;
+  label: string;
+  onPress: () => void;
+  color?: string;
+}
+
 // Componente de card reutilizável
-const InfoCard = ({ title, icon, children, mb = 4 }) => {
+const InfoCard: React.FC<InfoCardProps> = ({ title, icon, children, mb = 4, ...rest }) => {
   return (
     <Box
       bg="white"
@@ -65,6 +126,7 @@ const InfoCard = ({ title, icon, children, mb = 4 }) => {
       shadow={2}
       mb={mb}
       overflow="hidden"
+      {...rest}
     >
       <Box bg={colors.darkBlue} px={4} py={3}>
         <HStack alignItems="center" space={2}>
@@ -78,7 +140,14 @@ const InfoCard = ({ title, icon, children, mb = 4 }) => {
 };
 
 // Componente para itens de contato
-const ContactItem = ({ icon, title, value, actionIcon, onPress, color = colors.primary }) => {
+const ContactItem: React.FC<ContactItemProps> = ({ 
+  icon, 
+  title, 
+  value, 
+  actionIcon, 
+  onPress, 
+  color = colors.primary 
+}) => {
   return (
     <Pressable
       onPress={onPress}
@@ -101,7 +170,7 @@ const ContactItem = ({ icon, title, value, actionIcon, onPress, color = colors.p
 };
 
 // Componente para item de horário
-const ScheduleItem = ({ day, hours, isOpen = false }) => {
+const ScheduleItem: React.FC<ScheduleItemProps> = ({ day, hours, isOpen = false }) => {
   return (
     <HStack justifyContent="space-between" py={2} borderBottomWidth={1} borderBottomColor={`${colors.grayText}20`}>
       <Text fontWeight="medium" color={colors.darkBlue}>{day}</Text>
@@ -118,7 +187,12 @@ const ScheduleItem = ({ day, hours, isOpen = false }) => {
 };
 
 // Componente para botão de rede social
-const SocialButton = ({ icon, label, onPress, color = colors.primary }) => {
+const SocialButton: React.FC<SocialButtonProps> = ({ 
+  icon, 
+  label, 
+  onPress, 
+  color = colors.primary 
+}) => {
   return (
     <Pressable onPress={onPress}>
       <VStack alignItems="center" space={2}>
@@ -131,16 +205,16 @@ const SocialButton = ({ icon, label, onPress, color = colors.primary }) => {
   );
 };
 
-export default function About() {
+const About: React.FC = () => {
   const toast = useToast();
   
   // Verificar se a pizzaria está aberta agora
-  const isOpenNow = () => {
+  const isOpenNow = (): boolean => {
     const hoje = new Date();
     const diaSemana = hoje.getDay(); // 0-6, onde 0 é domingo
     const hora = hoje.getHours();
     
-    let horarioHoje;
+    let horarioHoje: string;
     switch(diaSemana) {
       case 0: horarioHoje = pizzariaInfo.horario.domingo; break;
       case 1: horarioHoje = pizzariaInfo.horario.segunda; break;
@@ -161,7 +235,7 @@ export default function About() {
   
   const aberto = isOpenNow();
   
-  const handleContactPress = (type, value) => {
+  const handleContactPress = (type: string, value: string): void => {
     toast.show({
       description: `Abrindo ${type}: ${value}`,
       placement: "top",
@@ -191,7 +265,7 @@ export default function About() {
         </HStack>
       </Box>
       
-      <ScrollView flex={1} showsVerticalScrollIndicator={false}>
+      <ScrollView flex={1} showsVerticalScrollIndicator={false} pb={24}>
         {/* Banner */}
         <Box bg={colors.darkBlue} pb={12} pt={4} px={4}>
           <Center>
@@ -278,7 +352,7 @@ export default function About() {
           </InfoCard>
           
           {/* Card de Horário de funcionamento */}
-          <InfoCard title="HORÁRIO DE FUNCIONAMENTO" icon="time-outline" mb={0}>
+          <InfoCard title="HORÁRIO DE FUNCIONAMENTO" icon="time-outline" mb={8}>
             <Box p={4}>
               <HStack mb={3} bg={`${colors.grayText}15`} p={2} borderRadius="md" justifyContent="center">
                 <Badge
@@ -395,4 +469,6 @@ export default function About() {
       </Box>
     </VStack>
   );
-}
+};
+
+export default About;

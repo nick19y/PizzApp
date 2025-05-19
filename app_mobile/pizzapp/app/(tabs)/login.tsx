@@ -9,14 +9,14 @@ import {
   Button,
   HStack,
   Center,
-  Image,
-  Pressable,
   Icon,
   Link,
   KeyboardAvoidingView,
   ScrollView,
+  Pressable,
   useToast,
-  StatusBar
+  StatusBar,
+  IToastProps
 } from "native-base";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
@@ -31,20 +31,29 @@ const colors = {
   grayText: "#64748b"
 };
 
-export default function Login() {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
+// Interface corrigida para corresponder às opções de IToastProps
+interface CustomToastProps extends Omit<IToastProps, 'placement'> {
+  description: string;
+  placement?: "top" | "bottom" | "top-right" | "top-left" | "bottom-left" | "bottom-right";
+  title?: string;
+  variant?: string;
+  duration?: number;
+  isClosable?: boolean;
+}
+
+const Login: React.FC = () => {
+  const [email, setEmail] = useState<string>("");
+  const [password, setPassword] = useState<string>("");
+  const [showPassword, setShowPassword] = useState<boolean>(false);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
   const toast = useToast();
   const router = useRouter();
 
-  const handleLogin = () => {
+  const handleLogin = (): void => {
     // Validação básica
     if (!email || !password) {
       toast.show({
         description: "Por favor, preencha todos os campos",
-        status: "error",
         placement: "top"
       });
       return;
@@ -62,7 +71,6 @@ export default function Login() {
       
       toast.show({
         description: "Login realizado com sucesso!",
-        status: "success",
         placement: "top"
       });
     }, 1500);
@@ -186,7 +194,7 @@ export default function Login() {
                 borderWidth={1}
                 borderColor={colors.primary}
                 _pressed={{ bg: `${colors.primary}10` }}
-                onPress={() => router.push("/register")}
+                onPress={() => router.push("/(tabs)/register" as any)}
                 py={3}
                 borderRadius="lg"
                 _text={{ color: colors.primary }}
@@ -207,4 +215,6 @@ export default function Login() {
       </Box>
     </KeyboardAvoidingView>
   );
-}
+};
+
+export default Login;

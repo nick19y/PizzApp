@@ -15,11 +15,33 @@ import {
   Pressable,
   Divider,
   Center,
-  StatusBar
+  StatusBar,
+  IToastProps
 } from "native-base";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { Platform } from "react-native";
+
+// Interfaces para tipagem
+interface FormData {
+  name: string;
+  email: string;
+  phone: string;
+  address: string;
+  password: string;
+  confirmPassword: string;
+}
+
+// Interface personalizada para toast com as propriedades corrigidas
+interface CustomToastProps extends Omit<IToastProps, 'placement'> {
+  description: string;
+  placement?: "top" | "bottom" | "top-right" | "top-left" | "bottom-left" | "bottom-right";
+  // Removido o status, que não é uma propriedade válida em IToastProps
+  title?: string;
+  variant?: string;
+  duration?: number;
+  isClosable?: boolean;
+}
 
 // Definir cores para corresponder ao tema web
 const colors = {
@@ -30,8 +52,8 @@ const colors = {
   grayText: "#64748b"
 };
 
-export default function RegisterUser() {
-  const [formData, setFormData] = useState({
+const RegisterUser: React.FC = () => {
+  const [formData, setFormData] = useState<FormData>({
     name: "",
     email: "",
     phone: "",
@@ -39,26 +61,26 @@ export default function RegisterUser() {
     password: "",
     confirmPassword: ""
   });
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState<boolean>(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState<boolean>(false);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
   const toast = useToast();
   const router = useRouter();
 
-  const handleInputChange = (field, value) => {
+  const handleInputChange = (field: keyof FormData, value: string): void => {
     setFormData({
       ...formData,
       [field]: value
     });
   };
 
-  const validateForm = () => {
+  const validateForm = (): boolean => {
     // Validação básica
     if (!formData.name || !formData.email || !formData.password || !formData.confirmPassword) {
       toast.show({
         description: "Por favor, preencha todos os campos obrigatórios",
-        status: "error",
-        placement: "top"
+        placement: "top",
+        variant: "solid"
       });
       return false;
     }
@@ -68,8 +90,8 @@ export default function RegisterUser() {
     if (!emailRegex.test(formData.email)) {
       toast.show({
         description: "Por favor, informe um email válido",
-        status: "error",
-        placement: "top"
+        placement: "top",
+        variant: "solid"
       });
       return false;
     }
@@ -78,8 +100,8 @@ export default function RegisterUser() {
     if (formData.phone && !/^\([0-9]{2}\)\s[0-9]{8,9}$/.test(formData.phone)) {
       toast.show({
         description: "Formato de telefone inválido. Use (XX) XXXXXXXXX",
-        status: "warning",
-        placement: "top"
+        placement: "top",
+        variant: "solid"
       });
     }
 
@@ -87,8 +109,8 @@ export default function RegisterUser() {
     if (formData.password !== formData.confirmPassword) {
       toast.show({
         description: "As senhas não coincidem",
-        status: "error",
-        placement: "top"
+        placement: "top",
+        variant: "solid"
       });
       return false;
     }
@@ -96,7 +118,7 @@ export default function RegisterUser() {
     return true;
   };
 
-  const handleRegister = () => {
+  const handleRegister = (): void => {
     if (!validateForm()) return;
 
     setIsLoading(true);
@@ -108,12 +130,12 @@ export default function RegisterUser() {
       // Aqui você implementaria a chamada real de API para registro
       toast.show({
         description: "Cadastro realizado com sucesso!",
-        status: "success",
-        placement: "top"
+        placement: "top",
+        variant: "solid"
       });
       
       // Redirecionar para login após cadastro bem-sucedido
-      router.replace("/login");
+      router.replace("/(tabs)/login" as any);
     }, 1500);
   };
 
@@ -303,7 +325,7 @@ export default function RegisterUser() {
           {/* Opção para login */}
           <HStack mt={4} justifyContent="center">
             <Text color={colors.grayText}>Já tem uma conta?</Text>
-            <Pressable onPress={() => router.push("/login")}>
+            <Pressable onPress={() => router.push("/(tabs)/login" as any)}>
               <Text ml={1} color={colors.primary} fontWeight="medium">
                 Fazer login
               </Text>
@@ -320,4 +342,6 @@ export default function RegisterUser() {
       </ScrollView>
     </KeyboardAvoidingView>
   );
-}
+};
+
+export default RegisterUser;

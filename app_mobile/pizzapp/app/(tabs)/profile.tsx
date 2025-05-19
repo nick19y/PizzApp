@@ -14,6 +14,22 @@ import {
 } from "native-base";
 import { Ionicons } from "@expo/vector-icons";
 
+// Interfaces para tipagem
+interface UserData {
+  id: number;
+  name: string;
+  email: string;
+  address: string;
+  phone: string;
+  role: string;
+}
+
+interface ProfileListItemProps {
+  icon: string;
+  label: string;
+  value: string;
+}
+
 // Definir cores para corresponder ao tema web
 const colors = {
   primary: "#f97316", // Orange - cor de destaque
@@ -24,7 +40,7 @@ const colors = {
 };
 
 // Dados do usuário
-const userData = {
+const userData: UserData = {
   id: 1,
   name: "Nícolas de Godoi",
   email: "godoi.nic.nic@gmail.com",
@@ -34,7 +50,7 @@ const userData = {
 };
 
 // Componente para item da lista de perfil
-const ProfileListItem = ({ icon, label, value }) => (
+const ProfileListItem: React.FC<ProfileListItemProps> = ({ icon, label, value }) => (
   <Box py={2}>
     <HStack space={3} alignItems="center">
       <Box bg={`${colors.primary}10`} p={2} borderRadius="lg">
@@ -48,17 +64,9 @@ const ProfileListItem = ({ icon, label, value }) => (
   </Box>
 );
 
-export default function Profile() {
+const Profile: React.FC = () => {
   return (
     <VStack flex={1} bg={colors.light} safeArea>
-      {/* Header */}
-      {/* <Box bg={colors.dark} p={6} shadow={2}>
-        <HStack justifyContent="space-between" alignItems="center">
-          <Heading size="md" color="white">Perfil</Heading>
-          <Icon as={Ionicons} name="settings-outline" size="md" color="white" />
-        </HStack>
-      </Box> */}
-
       <ScrollView showsVerticalScrollIndicator={false}>
         {/* User Profile Card */}
         <Box>
@@ -220,4 +228,6 @@ export default function Profile() {
       </ScrollView>
     </VStack>
   );
-}
+};
+
+export default Profile;

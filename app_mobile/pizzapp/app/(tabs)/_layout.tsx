@@ -70,15 +70,6 @@ export default function TabLayout() {
             ),
           }}
         />
-        <Tabs.Screen
-          name="login"
-          options={{
-            title: 'Login',
-            tabBarIcon: ({ color, size }) => (
-              <Ionicons name='log-in' size={size + 4} color={color} />
-            ),
-          }}
-        />
       </Tabs>
     </NativeBaseProvider>
   );

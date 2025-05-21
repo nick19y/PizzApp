@@ -10,20 +10,15 @@ import {
   Icon,
   Button,
   Divider,
-  Pressable
+  Pressable,
+  useToast,
+  AlertDialog
 } from "native-base";
 import { Ionicons } from "@expo/vector-icons";
+import { useAuth } from "@/context/AuthContext"; // Ajuste o caminho conforme necessário
+import { useRouter } from "expo-router";
 
 // Interfaces para tipagem
-interface UserData {
-  id: number;
-  name: string;
-  email: string;
-  address: string;
-  phone: string;
-  role: string;
-}
-
 interface ProfileListItemProps {
   icon: string;
   label: string;
@@ -39,16 +34,6 @@ const colors = {
   grayText: "#64748b"
 };
 
-// Dados do usuário
-const userData: UserData = {
-  id: 1,
-  name: "Nícolas de Godoi",
-  email: "godoi.nic.nic@gmail.com",
-  address: "Rua teste",
-  phone: "(15) 991718913",
-  role: "admin"
-};
-
 // Componente para item da lista de perfil
 const ProfileListItem: React.FC<ProfileListItemProps> = ({ icon, label, value }) => (
   <Box py={2}>
@@ -57,7 +42,7 @@ const ProfileListItem: React.FC<ProfileListItemProps> = ({ icon, label, value })
         <Icon as={Ionicons} name={icon} size="md" color={colors.primary} />
       </Box>
       <VStack>
-        <Text fontWeight="medium" color={colors.dark}>{value}</Text>
+        <Text fontWeight="medium" color={colors.dark}>{value || "Não informado"}</Text>
         <Text fontSize="xs" color={colors.grayText}>{label}</Text>
       </VStack>
     </HStack>
@@ -65,6 +50,47 @@ const ProfileListItem: React.FC<ProfileListItemProps> = ({ icon, label, value })
 );
 
 const Profile: React.FC = () => {
+  // Obter dados do usuário e a função de logout do contexto
+  const { user, signout, loading } = useAuth();
+  const toast = useToast();
+  const router = useRouter();
+  
+  // Estado para controlar o AlertDialog de confirmação
+  const [isOpen, setIsOpen] = React.useState(false);
+  const cancelRef = React.useRef(null);
+
+  // Lidar com o clique no botão de logout
+  const handleLogout = async () => {
+    try {
+      await signout();
+      toast.show({
+        description: "Você saiu com sucesso",
+        placement: "top",
+        status: "success",
+        duration: 2000
+      });
+      // O redirecionamento acontecerá automaticamente devido à atualização do contexto
+    } catch (error) {
+      console.error("Erro ao fazer logout:", error);
+      toast.show({
+        description: "Erro ao sair da conta. Tente novamente.",
+        placement: "top",
+        status: "error",
+        duration: 3000
+      });
+    }
+  };
+
+  // Função para formatar o tipo de conta
+  const formatUserRole = (role) => {
+    const roleMap = {
+      'admin': 'Administrador',
+      'staff': 'Funcionário',
+      'client': 'Cliente'
+    };
+    return roleMap[role] || role;
+  };
+
   return (
     <VStack flex={1} bg={colors.light} safeArea>
       <ScrollView showsVerticalScrollIndicator={false}>
@@ -94,11 +120,13 @@ const Profile: React.FC = () => {
                 borderColor="white"
                 mt={-16}
                 shadow={6}
-              />
+              >
+                {user?.name?.charAt(0) || "U"}
+              </Avatar>
               
               <VStack space={1} alignItems="center" mt={4}>
-                <Heading size="md" color={colors.dark}>{userData.name}</Heading>
-                <Text color={colors.grayText} fontSize="sm">{userData.email}</Text>
+                <Heading size="md" color={colors.dark}>{user?.name || "Usuário"}</Heading>
+                <Text color={colors.grayText} fontSize="sm">{user?.email || "email@exemplo.com"}</Text>
                 
                 <HStack space={2} mt={3}>
                   <Button
@@ -134,7 +162,7 @@ const Profile: React.FC = () => {
           <ProfileListItem 
             icon="mail-outline" 
             label="Email" 
-            value={userData.email} 
+            value={user?.email || ""} 
           />
           
           <Divider my={2} />
@@ -142,7 +170,7 @@ const Profile: React.FC = () => {
           <ProfileListItem 
             icon="call-outline" 
             label="Telefone" 
-            value={userData.phone} 
+            value={user?.phone || ""} 
           />
           
           <Divider my={2} />
@@ -150,7 +178,7 @@ const Profile: React.FC = () => {
           <ProfileListItem 
             icon="location-outline" 
             label="Endereço" 
-            value={userData.address} 
+            value={user?.address || ""} 
           />
           
           <Divider my={2} />
@@ -158,7 +186,7 @@ const Profile: React.FC = () => {
           <ProfileListItem 
             icon="person-circle-outline" 
             label="Tipo de Conta" 
-            value={userData.role === "admin" ? "Administrador" : "Cliente"} 
+            value={formatUserRole(user?.role)} 
           />
         </Box>
         
@@ -217,6 +245,9 @@ const Profile: React.FC = () => {
             _pressed={{
               bg: `${colors.primary}10`
             }}
+            onPress={() => setIsOpen(true)}
+            isLoading={loading}
+            isLoadingText="Saindo..."
           >
             Sair da conta
           </Button>
@@ -226,6 +257,42 @@ const Profile: React.FC = () => {
           </Text>
         </Box>
       </ScrollView>
+
+      {/* Diálogo de confirmação de logout */}
+      <AlertDialog 
+        leastDestructiveRef={cancelRef} 
+        isOpen={isOpen} 
+        onClose={() => setIsOpen(false)}
+      >
+        <AlertDialog.Content>
+          <AlertDialog.CloseButton />
+          <AlertDialog.Header>Sair da conta</AlertDialog.Header>
+          <AlertDialog.Body>
+            Tem certeza que deseja sair da sua conta? Você precisará fazer login novamente para acessar seus dados.
+          </AlertDialog.Body>
+          <AlertDialog.Footer>
+            <Button.Group space={2}>
+              <Button 
+                variant="unstyled" 
+                colorScheme="coolGray" 
+                onPress={() => setIsOpen(false)} 
+                ref={cancelRef}
+              >
+                Cancelar
+              </Button>
+              <Button 
+                colorScheme="danger" 
+                onPress={() => {
+                  setIsOpen(false);
+                  handleLogout();
+                }}
+              >
+                Sair
+              </Button>
+            </Button.Group>
+          </AlertDialog.Footer>
+        </AlertDialog.Content>
+      </AlertDialog>
     </VStack>
   );
 };

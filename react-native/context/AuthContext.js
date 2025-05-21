@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect } from "react";
 import { SafeAreaView, Text, ActivityIndicator, View } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import axiosClient from "../axios-client"; // Certifique-se de ajustar o caminho para seu arquivo
 
 // Cria o contexto de autenticação
 const AuthContext = createContext();
@@ -8,7 +9,7 @@ const AuthContext = createContext();
 // Provedor de autenticação
 const AuthProvider = ({ children }) => {
     const [loading, setLoading] = useState(true); // Começa como true para verificar o storage
-    const [session, setSession] = useState(true);
+    const [session, setSession] = useState(null);
     const [user, setUser] = useState(null);
 
     // Função para verificar se existe uma sessão salva
@@ -21,12 +22,28 @@ const AuthProvider = ({ children }) => {
             
             if (userToken) {
                 // Se o token existir, restaura a sessão
-                console.log("token existe")
+                console.log("Token existe no storage:", userToken.substring(0, 10) + "...");
                 setSession(userToken);
                 setUser(userData ? JSON.parse(userData) : null);
                 
-                // Aqui você pode opcionalmente validar o token com o backend
-                // await validateToken(userToken);
+                // Você pode validar o token com o backend aqui
+                try {
+                    const response = await axiosClient.get('/user');
+                    console.log("Validação do token bem-sucedida:", response.data);
+                    
+                    // Atualiza os dados do usuário caso necessário
+                    if (response.data) {
+                        setUser(response.data);
+                        await AsyncStorage.setItem('userData', JSON.stringify(response.data));
+                    }
+                } catch (validationError) {
+                    console.error("Erro na validação do token:", validationError);
+                    // Se o token for inválido, faz logout
+                    await signout();
+                }
+            } else {
+                setSession(null);
+                setUser(null);
             }
         } catch (error) {
             console.error("Erro ao verificar sessão:", error);
@@ -46,37 +63,47 @@ const AuthProvider = ({ children }) => {
     const signin = async (email, password) => {
         setLoading(true);
         try {
-            // Aqui você faria uma chamada para sua API
-            // Exemplo simulado:
-            // const response = await fetch('https://sua-api.com/login', {
-            //     method: 'POST',
-            //     headers: { 'Content-Type': 'application/json' },
-            //     body: JSON.stringify({ email, password })
-            // });
-            // const data = await response.json();
+            // Fazer login usando o axiosClient
+            const response = await axiosClient.post('/login', {
+                email,
+                password
+            });
             
-            // Simulação de resposta bem-sucedida
-            const mockResponse = {
-                token: 'token-exemplo-123456',
-                user: {
-                    id: 1,
-                    name: 'Usuário Teste',
-                    email: email
-                }
-            };
-            
-            // Guarda os dados no AsyncStorage
-            await AsyncStorage.setItem('userToken', mockResponse.token);
-            await AsyncStorage.setItem('userData', JSON.stringify(mockResponse.user));
-            
-            // Atualiza o estado do contexto
-            setSession(mockResponse.token);
-            setUser(mockResponse.user);
-            
-            return true;
+            // Verifica se a resposta contém o token e dados do usuário
+            if (response.data && response.data.token) {
+                const { token, user } = response.data;
+                
+                // Guarda os dados no AsyncStorage
+                await AsyncStorage.setItem('userToken', token);
+                await AsyncStorage.setItem('userData', JSON.stringify(user));
+                
+                // Atualiza o estado do contexto
+                setSession(token);
+                setUser(user);
+                
+                console.log("Login bem-sucedido para:", user.name);
+                return { success: true };
+            } else {
+                throw new Error("Resposta de login inválida");
+            }
         } catch (error) {
             console.error("Erro no login:", error);
-            return { error: "Falha ao realizar login. Verifique suas credenciais." };
+            
+            // Criação de mensagens de erro amigáveis
+            let errorMessage = "Falha ao realizar login. Verifique suas credenciais.";
+            
+            if (error.response) {
+                // Resposta contém dados do erro
+                if (error.response.status === 401) {
+                    errorMessage = "Email ou senha incorretos";
+                } else if (error.response.data && error.response.data.message) {
+                    errorMessage = error.response.data.message;
+                }
+            } else if (error.message === "Network Error") {
+                errorMessage = "Não foi possível conectar ao servidor. Verifique sua conexão.";
+            }
+            
+            return { error: errorMessage };
         } finally {
             setLoading(false);
         }
@@ -86,6 +113,17 @@ const AuthProvider = ({ children }) => {
     const signout = async () => {
         setLoading(true);
         try {
+            // Tenta fazer logout no servidor se estiver autenticado
+            if (session) {
+                try {
+                    await axiosClient.post('/logout');
+                    console.log("Logout no servidor bem-sucedido");
+                } catch (logoutError) {
+                    console.warn("Erro ao fazer logout no servidor:", logoutError);
+                    // Continua com o logout local mesmo se falhar no servidor
+                }
+            }
+            
             // Remove os dados do AsyncStorage
             await AsyncStorage.removeItem('userToken');
             await AsyncStorage.removeItem('userData');

@@ -1,4 +1,5 @@
 import axios from "axios";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Platform } from 'react-native';
 
 // Detectar se estamos em emulador/dispositivo físico ou web
@@ -26,14 +27,16 @@ axiosClient.interceptors.request.use(async (config) => {
     try {
         console.log(`Fazendo requisição para: ${config.baseURL}${config.url}`);
         
-        // Token válido obtido do login
-        config.headers.Authorization = `Bearer 14|UKd2CMqC0rs6V3i1Zk79CYtEkXkLq2dJN8Y5Q2EK36f85dd4`;
+        // Buscando o token do AsyncStorage
+        const token = await AsyncStorage.getItem('userToken');
         
-        // Versão com armazenamento seguro (para implementar depois)
-        // const token = await SecureStore.getItemAsync('ACCESS_TOKEN');
-        // if (token) {
-        //   config.headers.Authorization = `Bearer ${token}`;
-        // }
+        // Se houver token, adicione ao cabeçalho de autorização
+        if (token) {
+            config.headers.Authorization = `Bearer ${token}`;
+            console.log("Token encontrado e adicionado à requisição");
+        } else {
+            console.log("Nenhum token de autenticação encontrado");
+        }
         
         return config;
     } catch (error) {
@@ -59,7 +62,11 @@ axiosClient.interceptors.response.use(
         // Se o erro for 401 (não autorizado)
         if (error.response?.status === 401) {
             console.log("Não autorizado. Redirecionando para login...");
-            // router.replace('/signin');
+            // Limpar os dados armazenados quando o token expirar
+            AsyncStorage.removeItem('userToken');
+            AsyncStorage.removeItem('userData');
+            
+            // Redirecionamento será tratado no componente que recebe o erro
         }
         
         return Promise.reject(error);

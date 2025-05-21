@@ -31,7 +31,7 @@ const colors = {
   grayText: "#64748b"
 };
 
-const signin = () => {
+const Signin = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -48,7 +48,8 @@ const signin = () => {
     if (!email || !password) {
       toast.show({
         description: "Por favor, preencha todos os campos",
-        placement: "top"
+        placement: "top",
+        status: "warning"
       });
       return;
     }
@@ -62,18 +63,25 @@ const signin = () => {
       if (result.error) {
         toast.show({
           description: result.error,
-          placement: "top"
+          placement: "top",
+          status: "error",
+          duration: 3000
         });
       } else {
         toast.show({
           description: "Login realizado com sucesso!",
-          placement: "top"
+          placement: "top",
+          status: "success",
+          duration: 2000
         });
+        // O redirecionamento acontecerá automaticamente por causa do useEffect no AuthContext
       }
     } catch (error) {
+      console.error("Erro inesperado no login:", error);
       toast.show({
-        description: "Erro ao fazer login",
-        placement: "top"
+        description: "Erro ao fazer login. Tente novamente.",
+        placement: "top",
+        status: "error"
       });
     } finally {
       setIsLoading(false);
@@ -221,4 +229,4 @@ const signin = () => {
   );
 };
 
-export default signin;
+export default Signin;

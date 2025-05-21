@@ -21,7 +21,7 @@ class OrderController extends Controller
         $user = $request->user();
         
         // Admin or staff can see all orders
-        if ($user->role === 'admin' || $user->role === 'staff') {
+        if ($user->role === 'admin' || $user->role === 'staff' || $user->role === 'client') {
             $orders = Order::with(['user:id,name,email', 'itemOrders.item'])
                 ->orderBy('created_at', 'desc')
                 ->paginate(10);
@@ -198,7 +198,7 @@ class OrderController extends Controller
         $user = $request->user();
         
         // Check if user is authorized to view this order
-        if ($user->id !== $order->user_id && !in_array($user->role, ['admin', 'staff'])) {
+        if ($user->id !== $order->user_id && !in_array($user->role, ['admin', 'client', 'staff'])) {
             return response()->json([
                 'success' => false,
                 'message' => 'Não autorizado'
@@ -221,7 +221,7 @@ class OrderController extends Controller
         $user = $request->user();
         
         // Only admin or staff can update orders
-        if (!in_array($user->role, ['admin', 'staff'])) {
+        if (!in_array($user->role, ['admin', 'client', 'staff'])) {
             return response()->json([
                 'success' => false,
                 'message' => 'Não autorizado'
@@ -255,7 +255,7 @@ class OrderController extends Controller
         $user = $request->user();
         
         // Only admin or the order owner can cancel a pending order
-        if ($user->id !== $order->user_id && !in_array($user->role, ['admin'])) {
+        if ($user->id !== $order->user_id && !in_array($user->role, ['admin', 'client'])) {
             return response()->json([
                 'success' => false,
                 'message' => 'Não autorizado'

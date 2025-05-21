@@ -19,7 +19,7 @@ class ItemOrderController extends Controller
         $user = $request->user();
 
         // Check if user is authorized to view this order
-        if ($user->id !== $order->user_id && !in_array($user->role, ['admin', 'staff'])) {
+        if ($user->id !== $order->user_id && !in_array($user->role, ['admin','client', 'staff'])) {
             return response()->json([
                 'success' => false,
                 'message' => 'Não autorizado'
@@ -47,7 +47,7 @@ class ItemOrderController extends Controller
         $order = Order::findOrFail($data['order_id']);
         
         // Check if user is authorized to modify this order
-        if ($user->id !== $order->user_id && !in_array($user->role, ['admin', 'staff'])) {
+        if ($user->id !== $order->user_id && !in_array($user->role, ['admin','client', 'staff'])) {
             return response()->json([
                 'success' => false,
                 'message' => 'Não autorizado'
@@ -104,7 +104,7 @@ class ItemOrderController extends Controller
         $order = $itemOrder->order;
         
         // Check if user is authorized to modify this order
-        if ($user->id !== $order->user_id && !in_array($user->role, ['admin', 'staff'])) {
+        if ($user->id !== $order->user_id && !in_array($user->role, ['admin','client', 'staff'])) {
             return response()->json([
                 'success' => false,
                 'message' => 'Não autorizado'
@@ -201,7 +201,7 @@ class ItemOrderController extends Controller
         $order = $itemOrder->order;
         
         // Check if user is authorized to modify this order
-        if ($user->id !== $order->user_id && !in_array($user->role, ['admin', 'staff'])) {
+        if ($user->id !== $order->user_id && !in_array($user->role, ['admin','client', 'staff'])) {
             return response()->json([
                 'success' => false,
                 'message' => 'Não autorizado'
@@ -243,7 +243,7 @@ class ItemOrderController extends Controller
         $order = $itemOrder->order;
 
         // Check if user is authorized to view this order (and its items)
-        if ($user->id !== $order->user_id && !in_array($user->role, ['admin', 'staff'])) {
+        if ($user->id !== $order->user_id && !in_array($user->role, ['admin','client', 'staff'])) {
             return response()->json([
                 'success' => false,
                 'message' => 'Não autorizado'

@@ -12,17 +12,47 @@ const colors = {
   secondary: "#3b82f6", // Azul - cor secundária
   tertiary: "#8b5cf6", // Roxo - cor terciária
   success: "#10b981", // Verde - para badges/status
+  light: "#ffffff",
+  grayBg: "#f8fafc",
+  grayText: "#64748b",
+  warning: "#eab308",
+  danger: "#ef4444",
+  info: "#0284c7"
 };
 
 // Temas customizados para o NativeBase
 const theme = extendTheme({
   colors: {
     primary: {
+      50: '#fff7ed',
+      100: '#ffedd5',
+      200: '#fed7aa',
+      300: '#fdba74',
+      400: '#fb923c',
       500: colors.primary,
+      600: '#ea580c',
+      700: '#c2410c',
+      800: '#9a3412',
+      900: '#7c2d12',
     },
     secondary: {
       500: colors.secondary,
     },
+    success: {
+      500: colors.success,
+    },
+    warning: {
+      500: colors.warning,
+    },
+    danger: {
+      500: colors.danger,
+    },
+    info: {
+      500: colors.info,
+    },
+  },
+  config: {
+    initialColorMode: 'light',
   },
 });
 
@@ -34,6 +64,11 @@ function TabsNavigator() {
         headerShown: false,
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.darkBlue,
+        tabBarStyle: {
+          backgroundColor: colors.light,
+          borderTopColor: '#e5e7eb',
+          borderTopWidth: 1,
+        },
       }}
     >
       <Tabs.Screen

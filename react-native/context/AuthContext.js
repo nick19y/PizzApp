@@ -8,7 +8,7 @@ const AuthContext = createContext();
 // Provedor de autenticação
 const AuthProvider = ({ children }) => {
     const [loading, setLoading] = useState(true); // Começa como true para verificar o storage
-    const [session, setSession] = useState(null);
+    const [session, setSession] = useState(true);
     const [user, setUser] = useState(null);
 
     // Função para verificar se existe uma sessão salva

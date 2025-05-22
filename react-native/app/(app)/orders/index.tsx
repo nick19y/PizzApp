@@ -58,6 +58,7 @@ interface OrderItemProps {
   order: Order;
   onPress: () => void;
   onReorder?: () => void;
+  onConfirmDelivery?: (orderId: string) => void; // Nova prop para confirmar entrega
 }
 
 // Definir cores para corresponder ao tema web
@@ -74,7 +75,7 @@ const colors = {
 };
 
 // Componente para cada item de pedido
-const OrderItemCard: React.FC<OrderItemProps> = ({ order, onPress, onReorder }) => {
+const OrderItemCard: React.FC<OrderItemProps> = ({ order, onPress, onReorder, onConfirmDelivery }) => {
   const getStatusColor = (status: string): string => {
     switch (status.toLowerCase()) {
       case "pending":
@@ -223,7 +224,7 @@ const OrderItemCard: React.FC<OrderItemProps> = ({ order, onPress, onReorder }) 
           </Box>
         )}
         
-        {/* Botões de ação */}
+        {/* Botões de ação - ATUALIZADOS */}
         <HStack space={2}>
           {order.status === "delivered" ? (
             <Button 
@@ -241,11 +242,12 @@ const OrderItemCard: React.FC<OrderItemProps> = ({ order, onPress, onReorder }) 
             <Button 
               flex={1}
               size="sm" 
-              bg={colors.primary}
-              _pressed={{ bg: colors.primary + "e0" }}
-              leftIcon={<Icon as={Ionicons} name="eye-outline" size="sm" color="white" />}
+              bg={colors.success}
+              _pressed={{ bg: colors.success + "e0" }}
+              leftIcon={<Icon as={Ionicons} name="checkmark-circle" size="sm" color="white" />}
+              onPress={() => onConfirmDelivery && onConfirmDelivery(order.id)}
             >
-              Acompanhar
+              Marcar como Entregue
             </Button>
           ) : (
             <Button 
@@ -274,6 +276,63 @@ const Orders: React.FC = () => {
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [showOrderDetails, setShowOrderDetails] = useState(false);
   const toast = useToast();
+
+  // Função para atualizar status do pedido para "delivered" - MOVIDA PARA O COMPONENTE PRINCIPAL
+  const updateOrderStatus = async (orderId: string) => {
+    try {
+      setIsLoading(true);
+      
+      console.log(`Atualizando status do pedido ${orderId} para "delivered"`);
+      
+      const response = await axiosClient.put(`/orders/${orderId}/status`, {
+        status: 'delivered'
+      });
+      
+      console.log("Status atualizado com sucesso:", response.data);
+      
+      // Atualizar o estado local
+      setOrders((prevOrders: Order[]) => 
+        prevOrders.map((order: Order) => 
+          order.id === orderId 
+            ? { ...order, status: 'delivered' }
+            : order
+        )
+      );
+      
+      toast.show({
+        description: "✅ Pedido marcado como entregue!",
+        placement: "top",
+        duration: 3000
+      });
+      
+    } catch (error: any) {
+      console.error("Erro ao atualizar status:", error);
+      
+      let errorMessage = "Erro ao atualizar status do pedido";
+      
+      if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error.response?.status === 404) {
+        errorMessage = "Pedido não encontrado";
+      } else if (error.response?.status === 403) {
+        errorMessage = "Você não tem permissão para atualizar este pedido";
+      }
+      
+      toast.show({
+        description: errorMessage,
+        placement: "top",
+        duration: 4000
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Função para confirmar entrega (com diálogo de confirmação) - MOVIDA PARA O COMPONENTE PRINCIPAL
+  const confirmDelivery = (orderId: string) => {
+    // Aqui você pode adicionar um AlertDialog se quiser confirmação
+    updateOrderStatus(orderId);
+  };
 
   // Função para buscar pedidos
   const fetchOrders = async (showRefreshIndicator = false) => {
@@ -448,6 +507,7 @@ const Orders: React.FC = () => {
               order={order} 
               onPress={() => handleOrderPress(order)}
               onReorder={() => handleReorder(order)}
+              onConfirmDelivery={confirmDelivery} // Passar a função de confirmar entrega
             />
           ))
         ) : (

@@ -25,7 +25,9 @@ import {
 } from "native-base";
 import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from 'expo-router';
+import { Platform } from 'react-native'; // IMPORT ADICIONADO
 import axiosClient from "../../../axios-client";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 // Interfaces para tipagem
 interface MenuItem {
@@ -49,6 +51,7 @@ interface OrderItem {
 }
 
 interface OrderData {
+  user_id?: number;
   delivery_address: string;
   contact_phone: string;
   notes?: string;
@@ -61,7 +64,6 @@ interface OrderData {
     special_instructions?: string;
   }[];
 }
-
 // Definir cores para corresponder ao tema web
 const colors = {
   primary: "#f97316", // Orange - cor de destaque
@@ -71,6 +73,28 @@ const colors = {
   grayText: "#64748b",
   success: "#16a34a",
   danger: "#ef4444"
+};
+
+const getUserId = async (): Promise<number | null> => {
+  try {
+    const userData = await AsyncStorage.getItem('userData');
+    if (userData) {
+      const user = JSON.parse(userData);
+      console.log("User data encontrado:", user);
+      return user.id || user.user_id || null;
+    }
+    
+    // Alternativa: tentar pegar direto do userToken (se houver info do user no token)
+    const token = await AsyncStorage.getItem('userToken');
+    if (token) {
+      console.log("Token encontrado, mas userData não. Token:", token.substring(0, 20) + "...");
+    }
+    
+    return null;
+  } catch (error) {
+    console.error("Erro ao obter user ID:", error);
+    return null;
+  }
 };
 
 const CreateOrder: React.FC = () => {
@@ -158,43 +182,62 @@ const CreateOrder: React.FC = () => {
     }
   };
 
+  // useEffect(() => {
+  //   fetchMenuItems();
+    
+  //   // Se houver itens para reorder, carregá-los
+  //   if (reorderItems && reorderItems.length > 0) {
+  //     const reorderOrderItems: OrderItem[] = reorderItems.map((item: any) => ({
+  //       item_id: item.item_id,
+  //       itemName: item.itemName,
+  //       size: item.size,
+  //       quantity: item.quantity,
+  //       unit_price: 0, // Será calculado quando os menuItems estiverem carregados
+  //       special_instructions: item.special_instructions
+  //     }));
+      
+  //     setSelectedItems(reorderOrderItems);
+      
+  //     toast.show({
+  //       description: "Itens do pedido anterior carregados",
+  //       placement: "top"
+  //     });
+  //   }
+  // }, [reorderItems]);
+
   useEffect(() => {
     fetchMenuItems();
-    
-    // Se houver itens para reorder, carregá-los
-    if (reorderItems && reorderItems.length > 0) {
-      const reorderOrderItems: OrderItem[] = reorderItems.map((item: any) => ({
-        item_id: item.item_id,
-        itemName: item.itemName,
-        size: item.size,
-        quantity: item.quantity,
-        unit_price: 0, // Será calculado quando os menuItems estiverem carregados
-        special_instructions: item.special_instructions
-      }));
+  }, []);
+
+  // Effect para calcular preços quando menuItems são carregados e há itens de reorder
+  useEffect(() => {
+    // Só executar se houver reorderItems E menuItems carregados E ainda não processou
+    if (reorderItems && reorderItems.length > 0 && menuItems.length > 0 && selectedItems.length === 0) {
+      console.log("🔄 Processando reorder items:", reorderItems);
+      
+      const reorderOrderItems: OrderItem[] = reorderItems.map((item: any) => {
+        const menuItem = menuItems.find(menu => menu.id === item.item_id);
+        const unit_price = menuItem ? getPriceBySize(menuItem, item.size) : 0;
+        
+        return {
+          item_id: item.item_id,
+          itemName: item.itemName,
+          size: item.size,
+          quantity: item.quantity,
+          unit_price,
+          special_instructions: item.special_instructions
+        };
+      });
       
       setSelectedItems(reorderOrderItems);
       
       toast.show({
-        description: "Itens do pedido anterior carregados",
-        placement: "top"
+        description: "✅ Itens do pedido anterior carregados",
+        placement: "top",
+        duration: 2000
       });
     }
-  }, [reorderItems]);
-
-  // Effect para calcular preços quando menuItems são carregados e há itens de reorder
-  useEffect(() => {
-    if (menuItems.length > 0 && selectedItems.length > 0 && selectedItems[0].unit_price === 0) {
-      const updatedItems = selectedItems.map(selectedItem => {
-        const menuItem = menuItems.find(item => item.id === selectedItem.item_id);
-        if (menuItem) {
-          const unit_price = getPriceBySize(menuItem, selectedItem.size);
-          return { ...selectedItem, unit_price };
-        }
-        return selectedItem;
-      });
-      setSelectedItems(updatedItems);
-    }
-  }, [menuItems]);
+  }, [menuItems]); 
 
   // Função para obter preço baseado no tamanho - VERSÃO CORRIGIDA
   const getPriceBySize = (item: MenuItem, size: 'small' | 'medium' | 'large'): number => {
@@ -403,79 +446,193 @@ const CreateOrder: React.FC = () => {
     return true;
   };
 
-  // Submeter pedido - VERSÃO CORRIGIDA
+  // FUNÇÃO submitOrder CORRIGIDA - SEM STATUS NO TOAST
   const submitOrder = async () => {
     if (!validateForm()) return;
 
     setIsLoading(true);
+    
     try {
-      // Preparar os dados exatamente como no React
+      // Obter user_id do AsyncStorage
+      const userId = await getUserId();
+      console.log("User ID obtido:", userId);
+      
+      // Limpar e validar telefone (remover formatação)
+      const cleanPhone = formData.contact_phone.replace(/\D/g, '');
+      
+      if (cleanPhone.length < 10 || cleanPhone.length > 11) {
+        toast.show({
+          description: "Telefone deve ter 10 ou 11 dígitos",
+          placement: "top"
+        });
+        setIsLoading(false);
+        return;
+      }
+      
+      // Preparar os dados para a API - INCLUINDO USER_ID
       const orderData: OrderData = {
-        delivery_address: formData.delivery_address,
-        contact_phone: formData.contact_phone,
-        notes: formData.notes || undefined,
-        delivery_time: formData.delivery_time || undefined,
+        user_id: userId || undefined, // Incluir user_id se disponível
+        delivery_address: formData.delivery_address?.trim() || "",
+        contact_phone: cleanPhone, // Telefone limpo, sem formatação
+        notes: formData.notes?.trim() || undefined,
+        delivery_time: formData.delivery_time?.trim() || undefined,
         payment_method: formData.payment_method,
         items: selectedItems.map(item => ({
           item_id: item.item_id,
           size: item.size,
           quantity: item.quantity,
-          special_instructions: item.special_instructions || undefined
+          special_instructions: item.special_instructions?.trim() || undefined
         }))
       };
 
-      console.log("=== DEBUG PEDIDO ===");
-      console.log("Dados sendo enviados:", JSON.stringify(orderData, null, 2));
-      console.log("URL:", "/orders");
-      console.log("Método:", "POST");
+      console.log("=== CRIANDO PEDIDO ===");
+      console.log("Platform:", Platform.OS);
+      console.log("User ID:", userId);
+      console.log("Dados do pedido:", JSON.stringify(orderData, null, 2));
+      console.log("Total de itens:", orderData.items.length);
+      console.log("Total calculado:", calculateTotal());
       
-      // Tentar primeiro a rota padrão para usuários autenticados
-      console.log("Tentando criar pedido via /orders...");
-      const response = await axiosClient.post('/orders', orderData);
+      // Verificar se temos user_id antes de enviar
+      if (!userId) {
+        console.warn("⚠️ User ID não encontrado. Tentando criar pedido sem autenticação...");
+        
+        // Opção 1: Tentar criar pedido sem user_id (para guests)
+        // Remover user_id se for null/undefined
+        const { user_id, ...orderDataWithoutUserId } = orderData;
+        
+        console.log("📤 Enviando requisição SEM user_id para /orders...");
+        const response = await axiosClient.post('/orders', orderDataWithoutUserId);
+        
+        console.log("✅ PEDIDO CRIADO COM SUCESSO (sem user_id)!");
+        console.log("Response:", response.data);
+      } else {
+        // Fazer a requisição normal com user_id
+        console.log("📤 Enviando requisição COM user_id para /orders...");
+        const response = await axiosClient.post('/orders', orderData);
+        
+        console.log("✅ PEDIDO CRIADO COM SUCESSO!");
+        console.log("Response:", response.data);
+      }
       
-      console.log("✅ Pedido criado com sucesso:", response.data);
+      // Limpar formulário e estado após sucesso
+      setSelectedItems([]);
+      setFormData({
+        delivery_address: '',
+        contact_phone: '',
+        notes: '',
+        delivery_time: '',
+        payment_method: 'cash'
+      });
+      setItemSizes({}); // Limpar tamanhos selecionados
       
+      // Toast de sucesso
       toast.show({
-        description: "Pedido criado com sucesso!",
+        description: "🎉 Pedido criado com sucesso!",
         placement: "top",
         duration: 3000
       });
       
-      // Navegar de volta para a lista de pedidos
-      router.back();
+      // Aguardar um pouco antes de navegar para dar tempo do toast aparecer
+      setTimeout(() => {
+        router.back();
+      }, 1500);
       
     } catch (error: any) {
-      console.error("❌ Erro ao criar pedido:", error);
+      console.error("❌ ERRO AO CRIAR PEDIDO:");
+      console.error("Error object:", error);
       
-      // Log detalhado do erro
+      let errorMessage = "Erro inesperado. Tente novamente.";
+      let errorDetails = "";
+      
       if (error.response) {
-        console.error("Status:", error.response.status);
-        console.error("Data:", error.response.data);
-        console.error("Headers:", error.response.headers);
+        // Erro de resposta HTTP
+        const status = error.response.status;
+        const data = error.response.data;
         
-        // Mostrar erro específico se disponível
-        const errorMessage = error.response.data?.message || 
-                           error.response.data?.error ||
-                           `Erro ${error.response.status}: ${error.response.statusText}`;
+        console.error(`HTTP ${status}:`, data);
         
-        toast.show({
-          description: errorMessage,
-          placement: "top",
-          duration: 5000
-        });
+        switch (status) {
+          case 400:
+            errorMessage = data?.message || "Dados inválidos. Verifique os campos preenchidos.";
+            errorDetails = "Erro 400 - Bad Request";
+            break;
+            
+          case 401:
+            errorMessage = "Acesso negado. Faça login novamente.";
+            errorDetails = "Erro 401 - Unauthorized";
+            // O interceptor já vai limpar o token
+            break;
+            
+          case 403:
+            errorMessage = "Você não tem permissão para criar pedidos.";
+            errorDetails = "Erro 403 - Forbidden";
+            break;
+            
+          case 422:
+            // Erro de validação - mostrar detalhes se disponível
+            if (data?.errors) {
+              const validationErrors = Object.values(data.errors).flat();
+              errorMessage = validationErrors.join(', ');
+              
+              // Se o erro for especificamente sobre user_id
+              if (data.errors.user_id || data.message?.includes('user id')) {
+                errorMessage = "É necessário fazer login para criar pedidos.";
+                console.error("❌ Erro de user_id - usuário precisa estar logado");
+              }
+            } else {
+              errorMessage = data?.message || "Dados de validação incorretos.";
+            }
+            errorDetails = "Erro 422 - Validation Error";
+            break;
+            
+          case 500:
+            errorMessage = "Erro interno do servidor. Tente novamente em alguns minutos.";
+            errorDetails = "Erro 500 - Internal Server Error";
+            break;
+            
+          default:
+            errorMessage = data?.message || `Erro HTTP ${status}`;
+            errorDetails = `Erro ${status}`;
+        }
+        
       } else if (error.request) {
+        // Erro de rede/conexão
         console.error("Erro de rede:", error.request);
-        toast.show({
-          description: "Erro de conexão. Verifique sua internet.",
-          placement: "top"
-        });
+        errorMessage = "Erro de conexão. Verifique sua internet e se o servidor está funcionando.";
+        errorDetails = "Network Error";
+        
+        // Dar dicas específicas para React Native
+        if (Platform.OS === 'android') {
+          errorMessage += "\n\nDica: Verifique se o endereço IP está correto e o servidor está rodando.";
+        }
+        
       } else {
-        console.error("Erro:", error.message);
-        toast.show({
-          description: "Erro inesperado. Tente novamente.",
-          placement: "top"
-        });
+        // Erro de configuração
+        console.error("Erro de configuração:", error.message);
+        errorMessage = "Erro de configuração: " + error.message;
+        errorDetails = "Config Error";
       }
+      
+      // Log para debug
+      console.error("Mensagem de erro:", errorMessage);
+      console.error("Detalhes:", errorDetails);
+      
+      // Mostrar toast de erro
+      toast.show({
+        description: errorMessage,
+        placement: "top",
+        duration: 6000 // Mais tempo para ler
+      });
+      
+      // Em desenvolvimento, mostrar detalhes adicionais
+      if (__DEV__) {
+        console.log("=== DEBUG INFO ===");
+        console.log("Base URL:", axiosClient.defaults.baseURL);
+        console.log("Platform:", Platform.OS);
+        console.log("Error details:", errorDetails);
+        console.log("==================");
+      }
+      
     } finally {
       setIsLoading(false);
     }
@@ -588,7 +745,7 @@ const CreateOrder: React.FC = () => {
         </Box>
 
         {/* Debug Info - Remover em produção */}
-        {__DEV__ && (
+        {/* {__DEV__ && (
           <Box bg="yellow.100" borderRadius="lg" p={4} mb={4}>
             <Text fontWeight="bold" mb={2}>Debug Info:</Text>
             <Text fontSize="xs">Items: {selectedItems.length}</Text>
@@ -599,7 +756,7 @@ const CreateOrder: React.FC = () => {
               <Text fontSize="xs">Primeiro item unit_price: {selectedItems[0].unit_price}</Text>
             )}
           </Box>
-        )}
+        )} */}
 
         {/* Itens Selecionados */}
         <Box bg="white" borderRadius="lg" p={4} mb={4} shadow={1}>
@@ -680,7 +837,13 @@ const CreateOrder: React.FC = () => {
         </Box>
 
         {/* Menu de Itens - Sistema igual ao React */}
-        <Box bg="white" borderRadius="lg" p={4} mb={4} shadow={1}>
+        <Box 
+          bg="white" 
+          borderRadius="lg" 
+          p={4} 
+          mb={selectedItems.length > 0 ? 24 : 2} // Margem condicional
+          shadow={1}
+        >
           <Heading size="sm" mb={4} color={colors.dark}>
             <Icon as={Ionicons} name="restaurant-outline" size="sm" mr={2} />
             Adicionar Itens
@@ -792,7 +955,7 @@ const CreateOrder: React.FC = () => {
         </Box>
       </ScrollView>
 
-      {/* Botão Finalizar Pedido Fixo */}
+      {/* Botão Finalizar Pedido Fixo - CORRIGIDO */}
       {selectedItems.length > 0 && (
         <Box
           position="absolute"
@@ -804,8 +967,9 @@ const CreateOrder: React.FC = () => {
           borderTopColor="gray.200"
           p={4}
           safeAreaBottom
+          shadow={3}
         >
-          <VStack space={2}>
+          <VStack space={3}>
             {/* Resumo do pedido */}
             <HStack justifyContent="space-between" alignItems="center">
               <VStack>
@@ -819,18 +983,25 @@ const CreateOrder: React.FC = () => {
               <Icon as={Ionicons} name="receipt-outline" size="lg" color={colors.primary} />
             </HStack>
             
+            {/* Botão com altura fixa e melhor estrutura */}
             <Button
               bg={colors.primary}
               _pressed={{ bg: colors.primary + "d0" }}
-              size="lg"
-              h={14}
+              _text={{ 
+                fontSize: "md", 
+                fontWeight: "bold",
+                color: "white"
+              }}
               leftIcon={<Icon as={Ionicons} name="checkmark-circle" size="md" color="white" />}
               onPress={submitOrder}
               isLoading={isLoading}
               isLoadingText="Criando pedido..."
-              _text={{ fontSize: "md", fontWeight: "bold" }}
+              height="56px" // Altura fixa em pixels
+              minHeight="56px" // Altura mínima
+              borderRadius="md"
+              disabled={isLoading}
             >
-              Finalizar Pedido
+              {isLoading ? "Criando pedido..." : "Finalizar Pedido"}
             </Button>
           </VStack>
         </Box>

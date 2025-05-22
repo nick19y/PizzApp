@@ -18,6 +18,7 @@ import {
   ITextProps
 } from "native-base";
 import { Ionicons } from "@expo/vector-icons";
+import { router } from 'expo-router';
 
 // Definindo interfaces para tipagem
 interface PizzariaHorario {
@@ -426,25 +427,6 @@ const About: React.FC = () => {
       {/* Rodapé com botões de ação */}
       <Box p={4} bg="white" shadow={5}>
         <HStack space={3}>
-          <Pressable 
-            flex={1}
-            bg={colors.darkBlue}
-            py={3.5}
-            borderRadius="lg"
-            _pressed={{ bg: colors.darkBlue+"e0" }}
-            onPress={() => {
-              toast.show({
-                description: "Abrindo localização no mapa",
-                placement: "top",
-                bg: colors.secondary,
-              });
-            }}
-          >
-            <HStack space={2} justifyContent="center" alignItems="center">
-              <Icon as={Ionicons} name="location-outline" color="white" size="sm" />
-              <Text color="white" fontWeight="bold" fontSize="md">Ver no Mapa</Text>
-            </HStack>
-          </Pressable>
           
           <Pressable 
             flex={1.5}
@@ -453,10 +435,14 @@ const About: React.FC = () => {
             borderRadius="lg"
             _pressed={{ bg: colors.primary+"e0" }}
             onPress={() => {
+              // Navegar para a página de criar pedido
+              router.push('/orders');
+              
               toast.show({
-                description: "Redirecionando para cardápio",
+                description: "Redirecionando para pedidos...",
                 placement: "top",
                 bg: colors.primary,
+                duration: 1500
               });
             }}
           >

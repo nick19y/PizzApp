@@ -20,13 +20,13 @@ class OrderController extends Controller
     {
         $user = $request->user();
         
-        // Admin or staff can see all orders
-        if ($user->role === 'admin' || $user->role === 'staff' || $user->role === 'client') {
+        // Apenas admin e staff podem ver todos os pedidos
+        if ($user->role === 'admin' || $user->role === 'staff') {
             $orders = Order::with(['user:id,name,email', 'itemOrders.item'])
                 ->orderBy('created_at', 'desc')
                 ->paginate(10);
         } else {
-            // Regular users can only see their own orders
+            // Usuários regulares (incluindo 'client') só podem ver seus próprios pedidos
             $orders = Order::with(['itemOrders.item'])
                 ->where('user_id', $user->id)
                 ->orderBy('created_at', 'desc')
@@ -38,7 +38,6 @@ class OrderController extends Controller
             'data' => $orders
         ]);
     }
-
     public function storeForUser(OrderRequest $request): JsonResponse
     {
         $data = $request->validated();
@@ -275,6 +274,46 @@ class OrderController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Pedido cancelado com sucesso'
+        ]);
+    }
+    /**
+     * Update the order status specifically.
+     */
+    public function updateStatus(Request $request, Order $order): JsonResponse
+    {
+        $user = $request->user();
+        
+        // Check if user is authorized to update this order
+        // Order owner can mark as delivered, admin/staff can change any status
+        if ($user->id !== $order->user_id && !in_array($user->role, ['admin', 'staff'])) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Não autorizado'
+            ], 403);
+        }
+        
+        $validated = $request->validate([
+            'status' => 'required|string|in:pending,processing,shipped,delivered,canceled'
+        ]);
+        
+        // If user is not admin/staff, only allow marking as delivered
+        if (!in_array($user->role, ['admin', 'staff']) && $validated['status'] !== 'delivered') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Você só pode marcar pedidos como entregues'
+            ], 403);
+        }
+        
+        $order->update([
+            'status' => $validated['status']
+        ]);
+        
+        $order->load(['itemOrders.item', 'user:id,name,email']);
+        
+        return response()->json([
+            'success' => true,
+            'message' => 'Status do pedido atualizado com sucesso',
+            'data' => $order
         ]);
     }
 }

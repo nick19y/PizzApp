@@ -13,20 +13,38 @@ export default function Cardapio() {
     const [activeCategory, setActiveCategory] = useState("pizzas");
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
-    const [menuItems, setMenuItems] = useState([]);  // Initialize as empty array
+    const [menuItems, setMenuItems] = useState([]);
     const [formData, setFormData] = useState({
         nome: "",
         descricao: "",
         categoria: "pizzas",
-        precoP: "",
-        precoM: "",
-        precoG: "",
+        tamanhos: [], // Array de tamanhos selecionados
+        precos: {}, // Objeto com preços por tamanho
         imagem: "",
         disponivel: true,
         destaque: false,
         ingredientes: "",
         tempoEstimado: ""
     });
+
+    // Definição dos tamanhos disponíveis por categoria
+    const tamanhosDisponiveis = {
+        pizzas: [
+            { id: 'P', label: 'Pequena (P)', description: '25cm - 4 fatias' },
+            { id: 'M', label: 'Média (M)', description: '30cm - 6 fatias' },
+            { id: 'G', label: 'Grande (G)', description: '35cm - 8 fatias' }
+        ],
+        bebidas: [
+            { id: 'P', label: 'Pequena (P)', description: '300ml' },
+            { id: 'M', label: 'Média (M)', description: '500ml' },
+            { id: 'G', label: 'Grande (G)', description: '1L' }
+        ],
+        sobremesas: [
+            { id: 'P', label: 'Individual', description: 'Porção individual' },
+            { id: 'M', label: 'Para dividir', description: 'Serve 2 pessoas' },
+            { id: 'G', label: 'Família', description: 'Serve 4 pessoas' }
+        ]
+    };
 
     // Mapeamento de categorias da API para categorias do componente
     const categoryMapping = {
@@ -50,20 +68,38 @@ export default function Cardapio() {
             const response = await axiosClient.get('/items');
             
             // Mapear os dados recebidos para o formato esperado pelo componente
-            const formattedItems = Array.isArray(response.data) ? response.data.map(item => ({
-                id: item.id,
-                nome: item.name,
-                descricao: item.description,
-                categoria: categoryMapping[item.category] || item.category, // Mapear categorias da API para o componente
-                precoP: item.price_small,
-                precoM: item.price_medium,
-                precoG: item.price_large,
-                imagem: item.image,
-                disponivel: item.available,
-                destaque: item.featured,
-                tempoEstimado: item.estimated_time,
-                ingredientes: item.specific_details?.ingredients || item.pizza?.ingredients || ""
-            })) : [];
+            const formattedItems = Array.isArray(response.data) ? response.data.map(item => {
+                // Determinar tamanhos disponíveis baseado nos preços
+                const tamanhos = [];
+                const precos = {};
+                
+                if (item.price_small) {
+                    tamanhos.push('P');
+                    precos.P = item.price_small;
+                }
+                if (item.price_medium) {
+                    tamanhos.push('M');
+                    precos.M = item.price_medium;
+                }
+                if (item.price_large) {
+                    tamanhos.push('G');
+                    precos.G = item.price_large;
+                }
+
+                return {
+                    id: item.id,
+                    nome: item.name,
+                    descricao: item.description,
+                    categoria: categoryMapping[item.category] || item.category,
+                    tamanhos: tamanhos,
+                    precos: precos,
+                    imagem: item.image,
+                    disponivel: item.available,
+                    destaque: item.featured,
+                    tempoEstimado: item.estimated_time,
+                    ingredientes: item.specific_details?.ingredients || item.pizza?.ingredients || ""
+                };
+            }) : [];
             
             console.log("Itens formatados: ", formattedItems);
             setMenuItems(formattedItems);
@@ -71,7 +107,7 @@ export default function Cardapio() {
         } catch (err) {
             console.error("Erro ao carregar itens do cardápio:", err);
             setError("Falha ao carregar o cardápio. Por favor, tente novamente.");
-            setMenuItems([]); // Reset to empty array on error
+            setMenuItems([]);
         } finally {
             setLoading(false);
         }
@@ -95,15 +131,59 @@ export default function Cardapio() {
         });
     };
 
+    // Função para lidar com mudança de categoria no formulário
+    const handleCategoryChange = (e) => {
+        const newCategory = e.target.value;
+        setFormData({
+            ...formData,
+            categoria: newCategory,
+            tamanhos: [], // Reset tamanhos quando mudar categoria
+            precos: {} // Reset preços quando mudar categoria
+        });
+    };
+
+    // Função para lidar com seleção de tamanhos
+    const handleTamanhoChange = (tamanhoId, isChecked) => {
+        let newTamanhos = [...formData.tamanhos];
+        let newPrecos = {...formData.precos};
+
+        if (isChecked) {
+            if (!newTamanhos.includes(tamanhoId)) {
+                newTamanhos.push(tamanhoId);
+                // Inicializar preço como string vazia
+                newPrecos[tamanhoId] = "";
+            }
+        } else {
+            newTamanhos = newTamanhos.filter(t => t !== tamanhoId);
+            delete newPrecos[tamanhoId];
+        }
+
+        setFormData({
+            ...formData,
+            tamanhos: newTamanhos,
+            precos: newPrecos
+        });
+    };
+
+    // Função para lidar com mudança de preço
+    const handlePrecoChange = (tamanhoId, valor) => {
+        setFormData({
+            ...formData,
+            precos: {
+                ...formData.precos,
+                [tamanhoId]: valor
+            }
+        });
+    };
+
     const handleAddItem = () => {
         setEditingItem(null);
         setFormData({
             nome: "",
             descricao: "",
             categoria: activeCategory,
-            precoP: "",
-            precoM: "",
-            precoG: "",
+            tamanhos: [],
+            precos: {},
             imagem: "",
             disponivel: true,
             destaque: false,
@@ -143,9 +223,23 @@ export default function Cardapio() {
     const handleSubmit = async (e) => {
         e.preventDefault();
         
+        // Validar se pelo menos um tamanho foi selecionado
+        if (formData.tamanhos.length === 0) {
+            alert("Selecione pelo menos um tamanho para o produto.");
+            return;
+        }
+
+        // Validar se todos os tamanhos selecionados têm preço
+        const precosFaltantes = formData.tamanhos.filter(tamanho => 
+            !formData.precos[tamanho] || formData.precos[tamanho] === ""
+        );
+        if (precosFaltantes.length > 0) {
+            alert(`Preencha o preço para os tamanhos: ${precosFaltantes.join(", ")}`);
+            return;
+        }
+        
         try {
             // Mapear dados do formulário para o formato esperado pela API
-            // Converter categoria do componente para o formato da API
             const apiCategory = Object.keys(categoryMapping).find(
                 key => categoryMapping[key] === formData.categoria
             ) || formData.categoria;
@@ -154,9 +248,9 @@ export default function Cardapio() {
                 name: formData.nome,
                 description: formData.descricao,
                 category: apiCategory,
-                price_small: formData.precoP,
-                price_medium: formData.precoM,
-                price_large: formData.precoG,
+                price_small: formData.precos.P || null,
+                price_medium: formData.precos.M || null,
+                price_large: formData.precos.G || null,
                 image: formData.imagem,
                 available: formData.disponivel,
                 featured: formData.destaque,
@@ -174,9 +268,8 @@ export default function Cardapio() {
                     nome: response.data.name,
                     descricao: response.data.description,
                     categoria: categoryMapping[response.data.category] || response.data.category,
-                    precoP: response.data.price_small,
-                    precoM: response.data.price_medium,
-                    precoG: response.data.price_large,
+                    tamanhos: formData.tamanhos,
+                    precos: formData.precos,
                     imagem: response.data.image,
                     disponivel: response.data.available,
                     destaque: response.data.featured,
@@ -197,9 +290,8 @@ export default function Cardapio() {
                     nome: response.data.name,
                     descricao: response.data.description,
                     categoria: categoryMapping[response.data.category] || response.data.category,
-                    precoP: response.data.price_small,
-                    precoM: response.data.price_medium,
-                    precoG: response.data.price_large,
+                    tamanhos: formData.tamanhos,
+                    precos: formData.precos,
                     imagem: response.data.image,
                     disponivel: response.data.available,
                     destaque: response.data.featured,
@@ -247,7 +339,6 @@ export default function Cardapio() {
 
     return (
         <div className={styles.cardapio}>
-            
             <main className={styles.main}>
                 <div className={styles.page_header}>
                     <h1 className={styles.page_title}>Gerenciar Cardápio</h1>
@@ -314,21 +405,13 @@ export default function Cardapio() {
                                         <p className={styles.item_description}>{item.descricao}</p>
                                         
                                         <div className={styles.item_details}>
-                                            {item.categoria === 'pizzas' && (
-                                                <div className={styles.item_prices}>
-                                                    <span>P: R$ {item.precoP}</span>
-                                                    <span>M: R$ {item.precoM}</span>
-                                                    <span>G: R$ {item.precoG}</span>
-                                                </div>
-                                            )}
-                                            
-                                            {item.categoria !== 'pizzas' && (
-                                                <div className={styles.item_prices}>
-                                                    {item.precoP && <span>R$ {item.precoP}</span>}
-                                                    {item.precoM && <span>R$ {item.precoM}</span>}
-                                                    {item.precoG && <span>R$ {item.precoG}</span>}
-                                                </div>
-                                            )}
+                                            <div className={styles.item_prices}>
+                                                {item.tamanhos && item.tamanhos.map(tamanho => (
+                                                    <span key={tamanho}>
+                                                        {tamanho}: R$ {item.precos[tamanho]}
+                                                    </span>
+                                                ))}
+                                            </div>
                                             
                                             {item.tempoEstimado && (
                                                 <div className={styles.item_time}>
@@ -406,7 +489,7 @@ export default function Cardapio() {
                                         id="categoria"
                                         name="categoria"
                                         value={formData.categoria}
-                                        onChange={handleInputChange}
+                                        onChange={handleCategoryChange}
                                         required
                                     >
                                         <option value="pizzas">Pizzas</option>
@@ -437,64 +520,42 @@ export default function Cardapio() {
                                         placeholder="Separados por vírgula"
                                     ></textarea>
                                 </div>
-                                
-                                <div className={styles.form_row}>
-                                    <div className={styles.form_group}>
-                                        <label htmlFor="precoP">
-                                            {formData.categoria === 'pizzas' ? 'Preço (P)*' : 'Preço*'}
-                                        </label>
-                                        <div className={styles.price_input}>
-                                            <span>R$</span>
-                                            <input
-                                                type="number"
-                                                id="precoP"
-                                                name="precoP"
-                                                value={formData.precoP || ""}
-                                                onChange={handleInputChange}
-                                                step="0.01"
-                                                min="0"
-                                                required
-                                            />
-                                        </div>
+
+                                {/* Seção de Tamanhos e Preços */}
+                                <div className={styles.form_group_full}>
+                                    <label>Tamanhos e Preços*</label>
+                                    <div className={styles.tamanhos_container}>
+                                        {tamanhosDisponiveis[formData.categoria]?.map(tamanho => (
+                                            <div key={tamanho.id} className={styles.tamanho_item}>
+                                                <div className={styles.tamanho_header}>
+                                                    <input
+                                                        type="checkbox"
+                                                        id={`tamanho_${tamanho.id}`}
+                                                        checked={formData.tamanhos.includes(tamanho.id)}
+                                                        onChange={(e) => handleTamanhoChange(tamanho.id, e.target.checked)}
+                                                    />
+                                                    <label htmlFor={`tamanho_${tamanho.id}`} className={styles.tamanho_label}>
+                                                        <strong>{tamanho.label}</strong>
+                                                        <span className={styles.tamanho_description}>{tamanho.description}</span>
+                                                    </label>
+                                                </div>
+                                                
+                                                {formData.tamanhos.includes(tamanho.id) && (
+                                                    <div className={styles.preco_input}>
+                                                        <span>R$</span>
+                                                        <input
+                                                            type="number"
+                                                            step="0.01"
+                                                            min="0"
+                                                            placeholder="0.00"
+                                                            value={formData.precos[tamanho.id] || ""}
+                                                            onChange={(e) => handlePrecoChange(tamanho.id, e.target.value)}
+                                                        />
+                                                    </div>
+                                                )}
+                                            </div>
+                                        ))}
                                     </div>
-                                    
-                                    {formData.categoria === 'pizzas' && (
-                                        <>
-                                            <div className={styles.form_group}>
-                                                <label htmlFor="precoM">Preço (M)*</label>
-                                                <div className={styles.price_input}>
-                                                    <span>R$</span>
-                                                    <input
-                                                        type="number"
-                                                        id="precoM"
-                                                        name="precoM"
-                                                        value={formData.precoM || ""}
-                                                        onChange={handleInputChange}
-                                                        step="0.01"
-                                                        min="0"
-                                                        required
-                                                    />
-                                                </div>
-                                            </div>
-                                            
-                                            <div className={styles.form_group}>
-                                                <label htmlFor="precoG">Preço (G)*</label>
-                                                <div className={styles.price_input}>
-                                                    <span>R$</span>
-                                                    <input
-                                                        type="number"
-                                                        id="precoG"
-                                                        name="precoG"
-                                                        value={formData.precoG || ""}
-                                                        onChange={handleInputChange}
-                                                        step="0.01"
-                                                        min="0"
-                                                        required
-                                                    />
-                                                </div>
-                                            </div>
-                                        </>
-                                    )}
                                 </div>
                                 
                                 <div className={styles.form_group}>

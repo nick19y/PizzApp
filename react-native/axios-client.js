@@ -5,7 +5,7 @@ import { Platform } from 'react-native';
 // Detectar se estamos em emulador/dispositivo físico ou web
 const getBaseUrl = () => {
   if (Platform.OS === 'android') {
-    return 'http://192.168.42.22:8000/api'; // Endereço do host para emulador Android
+    return 'http://192.168.42.12:8000/api'; // Endereço do host para emulador Android
   } else if (Platform.OS === 'ios') {
     return 'http://localhost:8000/api'; // Para iOS
   } else {

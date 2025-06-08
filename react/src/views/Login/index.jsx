@@ -26,8 +26,6 @@ export default function Login() {
         setUser(response.data.user);
         setToken(response.data.token);
 
-        alert("Login realizado com sucesso!");
-
         // Limpa os campos se quiser
         setEmail('');
         setPassword('');

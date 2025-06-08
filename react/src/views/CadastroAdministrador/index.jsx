@@ -61,7 +61,7 @@ export default function CadastroAdmin() {
         setToken(response.data.token);
 
         console.log('Cadastro realizado:', response.data);
-        alert("Usuário cadastrado com sucesso!");
+        // alert("Usuário cadastrado com sucesso!");
 
         // Limpa os campos
         setFormData({

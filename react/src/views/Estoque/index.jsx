@@ -12,6 +12,7 @@ export default function Estoque() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isDetalhesModalOpen, setIsDetalhesModalOpen] = useState(false);
   const [categorias, setCategorias] = useState([]);
+  const [isInitialLoading, setIsInitialLoading] = useState(true);
   const [stats, setStats] = useState({
     total_ingredientes: 0,
     valor_total_estoque: 0,
@@ -49,53 +50,70 @@ export default function Estoque() {
 
   // Função para carregar os ingredientes
   const getIngredients = () => {
-    setLoading(true);
-    axiosClient.get('/ingredients', {
-      params: {
-        search: searchTerm,
-        categoria: categoriaFilter !== 'todas' ? categoriaFilter : null
-      }
+  setLoading(true);
+  axiosClient.get('/ingredients', {
+    params: {
+      search: searchTerm,
+      categoria: categoriaFilter !== 'todas' ? categoriaFilter : null
+    }
+  })
+    .then(response => {
+      // Verificar se os dados estão em response.data ou em response.data.data
+      const responseData = response.data.data || response.data;
+      
+      // Garantir que responseData é um array
+      const dataArray = Array.isArray(responseData) ? responseData : [];
+      
+      // Normalizar os nomes dos campos para o formato do front-end
+      const normalizedData = dataArray.map(item => ({
+        id: item.id,
+        codigo: item.codigo,
+        nome: item.nome,
+        descricao: item.descricao || '',
+        categoria: item.categoria,
+        precoCompra: parseFloat(item.preco_compra || 0),
+        precoVenda: parseFloat(item.preco_venda || 0),
+        quantidadeEstoque: parseFloat(item.quantidade_estoque || 0),
+        estoqueMinimo: parseFloat(item.estoque_minimo || 0),
+        fornecedor: item.fornecedor || '',
+        localizacao: item.localizacao || '',
+        dataUltimaCompra: item.data_ultima_compra || '',
+        unidadeMedida: item.unidade_medida || '',
+        dataValidade: item.data_validade || '',
+      }));
+      
+      // Ordenar os dados
+      const sortedData = sortData(normalizedData, sortField, sortDirection);
+      
+      setProdutos(normalizedData);
+      setFilteredProdutos(sortedData);
     })
-      .then(response => {
-        // Verificar se os dados estão em response.data ou em response.data.data
-        const responseData = response.data.data || response.data;
-        
-        // Garantir que responseData é um array
-        const dataArray = Array.isArray(responseData) ? responseData : [];
-        
-        // Normalizar os nomes dos campos para o formato do front-end
-        const normalizedData = dataArray.map(item => ({
-          id: item.id,
-          codigo: item.codigo,
-          nome: item.nome,
-          descricao: item.descricao || '',
-          categoria: item.categoria,
-          precoCompra: parseFloat(item.preco_compra || 0),
-          precoVenda: parseFloat(item.preco_venda || 0),
-          quantidadeEstoque: parseFloat(item.quantidade_estoque || 0),
-          estoqueMinimo: parseFloat(item.estoque_minimo || 0),
-          fornecedor: item.fornecedor || '',
-          localizacao: item.localizacao || '',
-          dataUltimaCompra: item.data_ultima_compra || '',
-          unidadeMedida: item.unidade_medida || '',
-          dataValidade: item.data_validade || '',
-        }));
-        
-        // Ordenar os dados
-        const sortedData = sortData(normalizedData, sortField, sortDirection);
-        
-        setProdutos(normalizedData);
-        setFilteredProdutos(sortedData);
-      })
-      .catch(error => {
-        console.error('Erro ao carregar ingredientes:', error);
-        // Mostrar algo para o usuário
-        alert('Erro ao carregar ingredientes. Verifique o console para mais detalhes.');
-      })
-      .finally(() => {
-        setLoading(false);
-      });
+    .catch(error => {
+      console.error('Erro ao carregar ingredientes:', error);
+      // Mostrar algo para o usuário
+      alert('Erro ao carregar ingredientes. Verifique o console para mais detalhes.');
+    })
+    .finally(() => {
+      setLoading(false);
+      setIsInitialLoading(false); // Adicionar esta linha
+    });
+};
+useEffect(() => {
+  const loadInitialData = async () => {
+    setIsInitialLoading(true);
+    try {
+      await Promise.all([
+        getIngredients(),
+        getCategories(),
+        getStats()
+      ]);
+    } finally {
+      setIsInitialLoading(false);
+    }
   };
+  
+  loadInitialData();
+}, []);
 
   // Função para ordenar os dados
   const sortData = (data, field, direction) => {
@@ -478,203 +496,217 @@ export default function Estoque() {
   return (
     <div className={styles.page_container}>
       <main className={styles.main_content}>
-        <div className={styles.page_header}>
-          <h1 className={styles.page_title}>Estoque da Pizzaria</h1>
-          <button 
-            className={styles.add_button}
-            onClick={() => openModal()}
-          >
-            <Plus size={16} />
-            Novo Ingrediente
-          </button>
-        </div>
+      <div className={styles.page_header}>
+        <h1 className={styles.page_title}>Estoque da Pizzaria</h1>
+        <button 
+          className={styles.add_button}
+          onClick={() => openModal()}
+          disabled={isInitialLoading}
+        >
+          <Plus size={16} />
+          Novo Ingrediente
+        </button>
+      </div>
 
-        <div className={styles.filters_row}>
-          <div className={styles.search_container}>
-            <div className={styles.search_box}>
-              <Search size={20} className={styles.search_icon} />
-              <input 
-                type="text" 
-                placeholder="Buscar ingredientes por código, nome..."
-                className={styles.search_input}
-                value={searchTerm}
-                onChange={handleSearch}
-              />
+      {isInitialLoading ? (
+        <div className={styles.loading}>
+          <div className={styles.spinner}></div>
+          <p>Carregando dados do estoque...</p>
+        </div>
+      ) : (
+        <>
+          <div className={styles.filters_row}>
+            <div className={styles.search_container}>
+              <div className={styles.search_box}>
+                <Search size={20} className={styles.search_icon} />
+                <input 
+                  type="text" 
+                  placeholder="Buscar ingredientes por código, nome..."
+                  className={styles.search_input}
+                  value={searchTerm}
+                  onChange={handleSearch}
+                />
+              </div>
+            </div>
+            
+            <div className={styles.filter_container}>
+              <div className={styles.filter_box}>
+                <Filter size={20} className={styles.filter_icon} />
+                <select 
+                  className={styles.filter_select}
+                  value={categoriaFilter}
+                  onChange={handleCategoriaFilter}
+                >
+                  <option value="todas">Todas as categorias</option>
+                  {getCategoriasUnicas().map(categoria => (
+                    <option key={categoria} value={categoria}>{categoria}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            
+            <button className={styles.export_button} onClick={exportarEstoque}>
+              <Download size={16} />
+              Exportar
+            </button>
+          </div>
+
+          <div className={styles.stats_cards}>
+            <div className={styles.stat_card}>
+              <h3>Total de Ingredientes</h3>
+              <p className={styles.stat_value}>{stats.total_ingredientes || 0}</p>
+            </div>
+            <div className={styles.stat_card}>
+              <h3>Valor em Estoque</h3>
+              <p className={styles.stat_value}>
+                R$ {parseFloat(stats.valor_total_estoque || 0).toFixed(2).replace('.', ',')}
+              </p>
+            </div>
+            <div className={styles.stat_card}>
+              <h3>Baixo Estoque</h3>
+              <p className={`${styles.stat_value} ${styles.warning_text}`}>
+                {stats.baixo_estoque || 0}
+              </p>
+            </div>
+            <div className={styles.stat_card}>
+              <h3>Vencendo em 7 dias</h3>
+              <p className={`${styles.stat_value} ${styles.warning_text}`}>
+                {stats.vencendo || 0}
+              </p>
+            </div>
+            <div className={styles.stat_card}>
+              <h3>Esgotados</h3>
+              <p className={`${styles.stat_value} ${styles.danger_text}`}>
+                {stats.esgotados || 0}
+              </p>
             </div>
           </div>
-          
-          <div className={styles.filter_container}>
-            <div className={styles.filter_box}>
-              <Filter size={20} className={styles.filter_icon} />
-              <select 
-                className={styles.filter_select}
-                value={categoriaFilter}
-                onChange={handleCategoriaFilter}
-              >
-                <option value="todas">Todas as categorias</option>
-                {getCategoriasUnicas().map(categoria => (
-                  <option key={categoria} value={categoria}>{categoria}</option>
-                ))}
-              </select>
-            </div>
-          </div>
-          
-          <button className={styles.export_button} onClick={exportarEstoque}>
-            <Download size={16} />
-            Exportar
-          </button>
-        </div>
 
-        <div className={styles.stats_cards}>
-          <div className={styles.stat_card}>
-            <h3>Total de Ingredientes</h3>
-            <p className={styles.stat_value}>{stats.total_ingredientes || 0}</p>
-          </div>
-          <div className={styles.stat_card}>
-            <h3>Valor em Estoque</h3>
-            <p className={styles.stat_value}>
-              R$ {parseFloat(stats.valor_total_estoque || 0).toFixed(2).replace('.', ',')}
-            </p>
-          </div>
-          <div className={styles.stat_card}>
-            <h3>Baixo Estoque</h3>
-            <p className={`${styles.stat_value} ${styles.warning_text}`}>
-              {stats.baixo_estoque || 0}
-            </p>
-          </div>
-          <div className={styles.stat_card}>
-            <h3>Vencendo em 7 dias</h3>
-            <p className={`${styles.stat_value} ${styles.warning_text}`}>
-              {stats.vencendo || 0}
-            </p>
-          </div>
-          <div className={styles.stat_card}>
-            <h3>Esgotados</h3>
-            <p className={`${styles.stat_value} ${styles.danger_text}`}>
-              {stats.esgotados || 0}
-            </p>
-          </div>
-        </div>
-
-        <div className={styles.table_container}>
-          {loading ? (
-            <div className={styles.loading}>Carregando...</div>
-          ) : (
-            <table className={styles.produtos_table}>
-              <thead>
-                <tr>
-                  <th className={styles.sortable} onClick={() => handleSort('nome')}>
-                    <div className={styles.th_content}>
-                      Nome {renderSortIndicator('nome')}
-                    </div>
-                  </th>
-                  <th className={styles.sortable} onClick={() => handleSort('codigo')}>
-                    <div className={styles.th_content}>
-                      Código {renderSortIndicator('codigo')}
-                    </div>
-                  </th>
-                  <th className={styles.sortable} onClick={() => handleSort('categoria')}>
-                    <div className={styles.th_content}>
-                      Categoria {renderSortIndicator('categoria')}
-                    </div>
-                  </th>
-                  <th className={styles.sortable} onClick={() => handleSort('precoCompra')}>
-                    <div className={styles.th_content}>
-                      Preço (R$) {renderSortIndicator('precoCompra')}
-                    </div>
-                  </th>
-                  <th className={styles.sortable} onClick={() => handleSort('quantidadeEstoque')}>
-                    <div className={styles.th_content}>
-                      Estoque {renderSortIndicator('quantidadeEstoque')}
-                    </div>
-                  </th>
-                  <th className={styles.sortable} onClick={() => handleSort('dataValidade')}>
-                    <div className={styles.th_content}>
-                      Validade {renderSortIndicator('dataValidade')}
-                    </div>
-                  </th>
-                  <th>Ações</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredProdutos.length > 0 ? (
-                  filteredProdutos.map(produto => {
-                    const estoqueStatus = getEstoqueStatus(produto.quantidadeEstoque, produto.estoqueMinimo);
-                    const validadeStatus = verificarValidade(produto.dataValidade);
-                    
-                    return (
-                      <tr key={produto.id}>
-                        <td>
-                          <div className={styles.produto_info_redesigned}>
-                            <span className={styles.produto_nome}>{produto.nome}</span>
-                            <span className={styles.produto_descricao}>
-                              {produto.descricao && produto.descricao.length > 40 
-                                ? produto.descricao.substring(0, 40) + '...' 
-                                : produto.descricao}
-                            </span>
-                          </div>
-                        </td>
-                        <td>{produto.codigo}</td>
-                        <td>{produto.categoria}</td>
-                        <td>R$ {produto.precoCompra.toFixed(2).replace('.', ',')}</td>
-                        <td>
-                          <div className={styles.estoque_info}>
-                            <span className={`${styles.estoque_badge} ${getEstoqueStatusClass(estoqueStatus)}`}>
-                              {produto.quantidadeEstoque} {produto.unidadeMedida}
-                              {estoqueStatus === "baixo" && (
-                                <AlertTriangle size={14} className={styles.estoque_icon} />
-                              )}
-                            </span>
-                            <span className={styles.estoque_minimo}>
-                              Min: {produto.estoqueMinimo}
-                            </span>
-                          </div>
-                        </td>
-                        <td>
-                          <span className={`${getValidadeStatusClass(validadeStatus)}`}>
-                            {new Date(produto.dataValidade).toLocaleDateString('pt-BR')}
-                          </span>
-                        </td>
-                        <td>
-                          <div className={styles.action_buttons}>
-                            <button 
-                              className={`${styles.action_button} ${styles.view}`}
-                              title="Visualizar Detalhes"
-                              onClick={() => openDetalhesModal(produto)}
-                            >
-                              <Eye size={16} />
-                            </button>
-                            <button 
-                              className={`${styles.action_button} ${styles.edit}`}
-                              onClick={() => openModal(produto)}
-                              title="Editar Ingrediente"
-                            >
-                              <Edit size={16} />
-                            </button>
-                            <button 
-                              className={`${styles.action_button} ${styles.delete}`}
-                              onClick={() => handleDelete(produto.id)}
-                              title="Excluir Ingrediente"
-                            >
-                              <Trash2 size={16} />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })
-                ) : (
+          <div className={styles.table_container}>
+            {loading ? (
+              <div className={styles.table_loading}>
+                <div className={styles.spinner}></div>
+                <p>Atualizando dados...</p>
+              </div>
+            ) : (
+              <table className={styles.produtos_table}>
+                {/* Resto da tabela permanece igual */}
+                <thead>
                   <tr>
-                    <td colSpan="7" className={styles.no_results}>
-                      Nenhum ingrediente encontrado
-                    </td>
+                    <th className={styles.sortable} onClick={() => handleSort('nome')}>
+                      <div className={styles.th_content}>
+                        Nome {renderSortIndicator('nome')}
+                      </div>
+                    </th>
+                    <th className={styles.sortable} onClick={() => handleSort('codigo')}>
+                      <div className={styles.th_content}>
+                        Código {renderSortIndicator('codigo')}
+                      </div>
+                    </th>
+                    <th className={styles.sortable} onClick={() => handleSort('categoria')}>
+                      <div className={styles.th_content}>
+                        Categoria {renderSortIndicator('categoria')}
+                      </div>
+                    </th>
+                    <th className={styles.sortable} onClick={() => handleSort('precoCompra')}>
+                      <div className={styles.th_content}>
+                        Preço (R$) {renderSortIndicator('precoCompra')}
+                      </div>
+                    </th>
+                    <th className={styles.sortable} onClick={() => handleSort('quantidadeEstoque')}>
+                      <div className={styles.th_content}>
+                        Estoque {renderSortIndicator('quantidadeEstoque')}
+                      </div>
+                    </th>
+                    <th className={styles.sortable} onClick={() => handleSort('dataValidade')}>
+                      <div className={styles.th_content}>
+                        Validade {renderSortIndicator('dataValidade')}
+                      </div>
+                    </th>
+                    <th>Ações</th>
                   </tr>
-                )}
-              </tbody>
-            </table>
-          )}
-        </div>
-      </main>
+                </thead>
+                <tbody>
+                  {filteredProdutos.length > 0 ? (
+                    filteredProdutos.map(produto => {
+                      const estoqueStatus = getEstoqueStatus(produto.quantidadeEstoque, produto.estoqueMinimo);
+                      const validadeStatus = verificarValidade(produto.dataValidade);
+                      
+                      return (
+                        <tr key={produto.id}>
+                          <td>
+                            <div className={styles.produto_info_redesigned}>
+                              <span className={styles.produto_nome}>{produto.nome}</span>
+                              <span className={styles.produto_descricao}>
+                                {produto.descricao && produto.descricao.length > 40 
+                                  ? produto.descricao.substring(0, 40) + '...' 
+                                  : produto.descricao}
+                              </span>
+                            </div>
+                          </td>
+                          <td>{produto.codigo}</td>
+                          <td>{produto.categoria}</td>
+                          <td>R$ {produto.precoCompra.toFixed(2).replace('.', ',')}</td>
+                          <td>
+                            <div className={styles.estoque_info}>
+                              <span className={`${styles.estoque_badge} ${getEstoqueStatusClass(estoqueStatus)}`}>
+                                {produto.quantidadeEstoque} {produto.unidadeMedida}
+                                {estoqueStatus === "baixo" && (
+                                  <AlertTriangle size={14} className={styles.estoque_icon} />
+                                )}
+                              </span>
+                              <span className={styles.estoque_minimo}>
+                                Min: {produto.estoqueMinimo}
+                              </span>
+                            </div>
+                          </td>
+                          <td>
+                            <span className={`${getValidadeStatusClass(validadeStatus)}`}>
+                              {new Date(produto.dataValidade).toLocaleDateString('pt-BR')}
+                            </span>
+                          </td>
+                          <td>
+                            <div className={styles.action_buttons}>
+                              <button 
+                                className={`${styles.action_button} ${styles.view}`}
+                                title="Visualizar Detalhes"
+                                onClick={() => openDetalhesModal(produto)}
+                              >
+                                <Eye size={16} />
+                              </button>
+                              <button 
+                                className={`${styles.action_button} ${styles.edit}`}
+                                onClick={() => openModal(produto)}
+                                title="Editar Ingrediente"
+                              >
+                                <Edit size={16} />
+                              </button>
+                              <button 
+                                className={`${styles.action_button} ${styles.delete}`}
+                                onClick={() => handleDelete(produto.id)}
+                                title="Excluir Ingrediente"
+                              >
+                                <Trash2 size={16} />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  ) : (
+                    <tr>
+                      <td colSpan="7" className={styles.no_results}>
+                        Nenhum ingrediente encontrado
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            )}
+          </div>
+        </>
+      )}
+    </main>
 
       {/* Modal de Cadastro/Edição de Ingrediente */}
       {isModalOpen && (

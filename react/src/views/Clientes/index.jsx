@@ -11,6 +11,7 @@ export default function Clientes() {
   const [selectedCliente, setSelectedCliente] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isPedidosModalOpen, setIsPedidosModalOpen] = useState(false);
+  const [isInitialLoading, setIsInitialLoading] = useState(true);
   const [formData, setFormData] = useState({
     id: null,
     name: "",
@@ -34,28 +35,47 @@ export default function Clientes() {
       
       setClientes(clientesData);
       setFilteredClientes(clientesData);
-      setLoading(false);
     } catch (err) {
       console.error("Erro ao carregar clientes:", err);
       setError("Não foi possível carregar a lista de clientes.");
+    } finally {
       setLoading(false);
+      setIsInitialLoading(false);
     }
   };
+  useEffect(() => {
+    const loadInitialData = async () => {
+      setIsInitialLoading(true);
+      try {
+        await fetchClientes();
+      } finally {
+        setIsInitialLoading(false);
+      }
+    };
+    
+    loadInitialData();
+  }, []);
 
   const handleSearch = (e) => {
     const value = e.target.value;
     setSearchTerm(value);
     
-    if (value.trim() === "") {
-      setFilteredClientes(clientes);
-    } else {
-      const filtered = clientes.filter(cliente => 
-        cliente.name.toLowerCase().includes(value.toLowerCase()) ||
-        cliente.email.toLowerCase().includes(value.toLowerCase()) ||
-        cliente.phone?.includes(value)
-      );
-      setFilteredClientes(filtered);
-    }
+    // Simular um pequeno delay para mostrar o loading
+    setLoading(true);
+    
+    setTimeout(() => {
+      if (value.trim() === "") {
+        setFilteredClientes(clientes);
+      } else {
+        const filtered = clientes.filter(cliente => 
+          cliente.name.toLowerCase().includes(value.toLowerCase()) ||
+          cliente.email.toLowerCase().includes(value.toLowerCase()) ||
+          cliente.phone?.includes(value)
+        );
+        setFilteredClientes(filtered);
+      }
+      setLoading(false);
+    }, 300); // 300ms de delay para simular busca
   };
 
   const openModal = (cliente = null) => {
@@ -164,222 +184,230 @@ export default function Clientes() {
   return (
     <div className={styles.page_container}>
       <main className={styles.main_content}>
-        <div className={styles.page_header}>
-          <h1 className={styles.page_title}>Gerenciamento de Clientes</h1>
-          <button 
-            className={styles.add_button}
-            onClick={() => openModal()}
-          >
-            <Plus size={16} />
-            Novo Cliente
-          </button>
-        </div>
+      <div className={styles.page_header}>
+        <h1 className={styles.page_title}>Gerenciamento de Clientes</h1>
+        <button 
+          className={styles.add_button}
+          onClick={() => openModal()}
+          disabled={isInitialLoading}
+        >
+          <Plus size={16} />
+          Novo Cliente
+        </button>
+      </div>
 
-        <div className={styles.search_container}>
-          <div className={styles.search_box}>
-            <Search size={20} className={styles.search_icon} />
-            <input 
-              type="text" 
-              placeholder="Buscar clientes..."
-              className={styles.search_input}
-              value={searchTerm}
-              onChange={handleSearch}
-            />
+      {isInitialLoading ? (
+        <div className={styles.loading}>
+          <div className={styles.spinner}></div>
+          <p>Carregando dados dos clientes...</p>
+        </div>
+      ) : error ? (
+        <div className={styles.error}>
+          <p>Erro ao carregar dados: {error}</p>
+        </div>
+      ) : (
+        <>
+          <div className={styles.search_container}>
+            <div className={styles.search_box}>
+              <Search size={20} className={styles.search_icon} />
+              <input 
+                type="text" 
+                placeholder="Buscar clientes..."
+                className={styles.search_input}
+                value={searchTerm}
+                onChange={handleSearch}
+              />
+            </div>
           </div>
-        </div>
 
-        {loading ? (
-          <div className={styles.loading}>Carregando clientes...</div>
-        ) : error ? (
-          <div className={styles.error}>{error}</div>
-        ) : (
           <div className={styles.table_container}>
-            <table className={styles.clients_table}>
-              <thead>
-                <tr>
-                  <th>ID</th>
-                  <th>Nome</th>
-                  <th>Email</th>
-                  <th>Telefone</th>
-                  <th>Endereço</th>
-                  <th>Cadastro</th>
-                  <th>Pedidos</th>
-                  <th>Ações</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredClientes.length > 0 ? (
-                  filteredClientes.map(cliente => (
-                    <tr key={cliente.id}>
-                      <td>{cliente.id}</td>
-                      <td>{cliente.name}</td>
-                      <td>{cliente.email}</td>
-                      <td>{cliente.phone || "-"}</td>
-                      <td>{cliente.address || "-"}</td>
-                      <td>{formatDate(cliente.created_at)}</td>
-                      <td>
-                        <button 
-                          className={styles.pedidos_button}
-                          onClick={() => openPedidosModal(cliente)}
-                        >
-                          <Package size={16} />
-                          {countPedidos(cliente)}
-                        </button>
-                      </td>
-                      <td>
-                        <div className={styles.action_buttons}>
+            {loading ? (
+              <div className={styles.table_loading}>
+                <div className={styles.spinner}></div>
+                <p>Atualizando dados...</p>
+              </div>
+            ) : (
+              <table className={styles.clients_table}>
+                <thead>
+                  <tr>
+                    <th>ID</th>
+                    <th>Nome</th>
+                    <th>Email</th>
+                    <th>Telefone</th>
+                    <th>Endereço</th>
+                    <th>Cadastro</th>
+                    <th>Pedidos</th>
+                    <th>Ações</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredClientes.length > 0 ? (
+                    filteredClientes.map(cliente => (
+                      <tr key={cliente.id}>
+                        <td>{cliente.id}</td>
+                        <td>{cliente.name}</td>
+                        <td>{cliente.email}</td>
+                        <td>{cliente.phone || "-"}</td>
+                        <td>{cliente.address || "-"}</td>
+                        <td>{formatDate(cliente.created_at)}</td>
+                        <td>
                           <button 
-                            className={`${styles.action_button} ${styles.view}`}
-                            title="Visualizar Cliente"
-                            onClick={() => alert(`Visualizando ${cliente.name}`)}
+                            className={styles.pedidos_button}
+                            onClick={() => openPedidosModal(cliente)}
                           >
-                            <Eye size={16} />
+                            <Package size={16} />
+                            {countPedidos(cliente)}
                           </button>
-                          <button 
-                            className={`${styles.action_button} ${styles.edit}`}
-                            onClick={() => openModal(cliente)}
-                            title="Editar Cliente"
-                          >
-                            <Edit size={16} />
-                          </button>
-                          {/* <button 
-                            className={`${styles.action_button} ${styles.delete}`}
-                            onClick={() => handleDelete(cliente.id)}
-                            title="Excluir Cliente"
-                          >
-                            <Trash2 size={16} />
-                          </button> */}
-                        </div>
+                        </td>
+                        <td>
+                          <div className={styles.action_buttons}>
+                            <button 
+                              className={`${styles.action_button} ${styles.view}`}
+                              title="Visualizar Cliente"
+                              onClick={() => alert(`Visualizando ${cliente.name}`)}
+                            >
+                              <Eye size={16} />
+                            </button>
+                            <button 
+                              className={`${styles.action_button} ${styles.edit}`}
+                              onClick={() => openModal(cliente)}
+                              title="Editar Cliente"
+                            >
+                              <Edit size={16} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan="8" className={styles.no_results}>
+                        Nenhum cliente encontrado
                       </td>
                     </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan="8" className={styles.no_results}>
-                      Nenhum cliente encontrado
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
+                  )}
+                </tbody>
+              </table>
+            )}
           </div>
-        )}
-      </main>
+        </>
+      )}
+    </main>
 
       {/* Modal de Cadastro/Edição */}
       {isModalOpen && (
-        <div className={styles.modal_overlay}>
-          <div className={styles.modal}>
-            <div className={styles.modal_header}>
-              <h2>{formData.id ? "Editar Cliente" : "Novo Cliente"}</h2>
-              <button className={styles.close_button} onClick={closeModal}>×</button>
-            </div>
-            {error && (
-              <div className={styles.error_message}>
-                {error}
-              </div>
-            )}
-            <form onSubmit={handleSubmit}>
-              <div className={styles.form_grid}>
-                <div className={styles.form_group}>
-                  <label htmlFor="name">Nome</label>
-                  <input
-                    type="text"
-                    id="name"
-                    name="name"
-                    value={formData.name}
-                    onChange={handleInputChange}
-                    required
-                  />
-                </div>
-                <div className={styles.form_group}>
-                  <label htmlFor="email">Email</label>
-                  <input
-                    type="email"
-                    id="email"
-                    name="email"
-                    value={formData.email}
-                    onChange={handleInputChange}
-                    required
-                  />
-                </div>
-                <div className={styles.form_group}>
-                  <label htmlFor="phone">Telefone</label>
-                  <input
-                    type="text"
-                    id="phone"
-                    name="phone"
-                    value={formData.phone}
-                    onChange={handleInputChange}
-                    required
-                  />
-                </div>
-                <div className={styles.form_group}>
-                  <label htmlFor="address">Endereço</label>
-                  <input
-                    type="text"
-                    id="address"
-                    name="address"
-                    value={formData.address}
-                    onChange={handleInputChange}
-                    required
-                  />
-                </div>
-                <div className={styles.form_group}>
-                  <label htmlFor="password">
-                    {formData.id ? "Senha (deixe em branco para não alterar)" : "Senha"}
-                  </label>
-                  <input
-                    type="password"
-                    id="password"
-                    name="password"
-                    value={formData.password}
-                    onChange={handleInputChange}
-                    required={!formData.id}
-                  />
-                </div>
-              </div>
-              <div className={styles.form_actions}>
-                <button type="button" className={styles.cancel_button} onClick={closeModal}>
-                  Cancelar
-                </button>
-                <button type="submit" className={styles.save_button}>
-                  Salvar
-                </button>
-              </div>
-            </form>
+      <div className={styles.modal_overlay}>
+        <div className={styles.modal}>
+          <div className={styles.modal_header}>
+            <h2>{formData.id ? "Editar Cliente" : "Novo Cliente"}</h2>
+            <button className={styles.close_button} onClick={closeModal}>×</button>
           </div>
+          {error && (
+            <div className={styles.error_message}>
+              {error}
+            </div>
+          )}
+          <form onSubmit={handleSubmit}>
+            <div className={styles.form_grid}>
+              <div className={styles.form_group}>
+                <label htmlFor="name">Nome</label>
+                <input
+                  type="text"
+                  id="name"
+                  name="name"
+                  value={formData.name}
+                  onChange={handleInputChange}
+                  required
+                />
+              </div>
+              <div className={styles.form_group}>
+                <label htmlFor="email">Email</label>
+                <input
+                  type="email"
+                  id="email"
+                  name="email"
+                  value={formData.email}
+                  onChange={handleInputChange}
+                  required
+                />
+              </div>
+              <div className={styles.form_group}>
+                <label htmlFor="phone">Telefone</label>
+                <input
+                  type="text"
+                  id="phone"
+                  name="phone"
+                  value={formData.phone}
+                  onChange={handleInputChange}
+                  required
+                />
+              </div>
+              <div className={styles.form_group}>
+                <label htmlFor="address">Endereço</label>
+                <input
+                  type="text"
+                  id="address"
+                  name="address"
+                  value={formData.address}
+                  onChange={handleInputChange}
+                  required
+                />
+              </div>
+              <div className={styles.form_group}>
+                <label htmlFor="password">
+                  {formData.id ? "Senha (deixe em branco para não alterar)" : "Senha"}
+                </label>
+                <input
+                  type="password"
+                  id="password"
+                  name="password"
+                  value={formData.password}
+                  onChange={handleInputChange}
+                  required={!formData.id}
+                />
+              </div>
+            </div>
+            <div className={styles.form_actions}>
+              <button type="button" className={styles.cancel_button} onClick={closeModal}>
+                Cancelar
+              </button>
+              <button type="submit" className={styles.save_button}>
+                Salvar
+              </button>
+            </div>
+          </form>
         </div>
-      )}
+      </div>
+    )}
+
 
       {/* Modal de Pedidos */}
       {isPedidosModalOpen && selectedCliente && (
-        <div className={styles.modal_overlay}>
-          <div className={`${styles.modal} ${styles.pedidos_modal}`}>
-            <div className={styles.modal_header}>
-              <h2>Pedidos de {selectedCliente.name}</h2>
-              <button className={styles.close_button} onClick={closePedidosModal}>×</button>
-            </div>
-            <div className={styles.pedidos_info}>
-              <p>
-                <strong>Cliente:</strong> {selectedCliente.name} (ID: {selectedCliente.id})
-              </p>
-              <p>
-                <strong>Email:</strong> {selectedCliente.email} | <strong>Telefone:</strong> {selectedCliente.phone || "-"}
-              </p>
-            </div>
-            {/* Aqui você pode implementar a lógica para buscar e exibir os pedidos deste cliente */}
-            <div className={styles.no_pedidos}>
-              <p>Este cliente ainda não possui pedidos registrados.</p>
-            </div>
-            <div className={styles.form_actions}>
-              <button type="button" className={styles.cancel_button} onClick={closePedidosModal}>
-                Fechar
-              </button>
-            </div>
+      <div className={styles.modal_overlay}>
+        <div className={`${styles.modal} ${styles.pedidos_modal}`}>
+          <div className={styles.modal_header}>
+            <h2>Pedidos de {selectedCliente.name}</h2>
+            <button className={styles.close_button} onClick={closePedidosModal}>×</button>
+          </div>
+          <div className={styles.pedidos_info}>
+            <p>
+              <strong>Cliente:</strong> {selectedCliente.name} (ID: {selectedCliente.id})
+            </p>
+            <p>
+              <strong>Email:</strong> {selectedCliente.email} | <strong>Telefone:</strong> {selectedCliente.phone || "-"}
+            </p>
+          </div>
+          <div className={styles.no_pedidos}>
+            <p>Este cliente ainda não possui pedidos registrados.</p>
+          </div>
+          <div className={styles.form_actions}>
+            <button type="button" className={styles.cancel_button} onClick={closePedidosModal}>
+              Fechar
+            </button>
           </div>
         </div>
-      )}
+      </div>
+    )}
     </div>
   );
 }

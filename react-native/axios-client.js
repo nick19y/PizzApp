@@ -5,7 +5,7 @@ import { Platform } from 'react-native';
 // Detectar se estamos em emulador/dispositivo físico ou web
 const getBaseUrl = () => {
   if (Platform.OS === 'android') {
-    return 'http://192.168.100.57:8000/api'; // Endereço do host para emulador Android
+    return 'http://10.131.252.255:8000/api'; // Endereço do host para emulador Android
   } else if (Platform.OS === 'ios') {
     return 'http://localhost:8000/api'; // Para iOS
   } else {
@@ -49,7 +49,7 @@ axiosClient.interceptors.request.use(async (config) => {
         
         // Log dos dados sendo enviados (se houver)
         if (config.data) {
-            console.log("Dados sendo enviados:", JSON.stringify(config.data, null, 2));
+            // console.log("Dados sendo enviados:", JSON.stringify(config.data, null, 2));
         }
         
         return config;

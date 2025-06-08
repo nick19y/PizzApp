@@ -11,6 +11,7 @@ export default function Pedidos() {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("todos");
   const [selectedPedido, setSelectedPedido] = useState(null);
+  const [isInitialLoading, setIsInitialLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isDetalhesModalOpen, setIsDetalhesModalOpen] = useState(false);
   const [itens, setItens] = useState([]);
@@ -151,9 +152,20 @@ export default function Pedidos() {
 
   // Buscar dados
   useEffect(() => {
-    fetchPedidos();
-    fetchItens();
-    fetchClientes();
+    const loadInitialData = async () => {
+      setIsInitialLoading(true);
+      try {
+        await Promise.all([
+          fetchPedidos(),
+          fetchItens(),
+          fetchClientes()
+        ]);
+      } finally {
+        setIsInitialLoading(false);
+      }
+    };
+    
+    loadInitialData();
   }, []);
 
   // Buscar pedidos
@@ -237,13 +249,27 @@ export default function Pedidos() {
   const handleSearch = (e) => {
     const value = e.target.value;
     setSearchTerm(value);
-    filterPedidos(value, statusFilter);
+    
+    // Simular um pequeno delay para mostrar o loading
+    setLoading(true);
+    
+    setTimeout(() => {
+      filterPedidos(value, statusFilter);
+      setLoading(false);
+    }, 300); // 300ms de delay para simular busca
   };
 
   const handleStatusFilter = (e) => {
     const status = e.target.value;
     setStatusFilter(status);
-    filterPedidos(searchTerm, status);
+    
+    // Simular um pequeno delay para mostrar o loading
+    setLoading(true);
+    
+    setTimeout(() => {
+      filterPedidos(searchTerm, status);
+      setLoading(false);
+    }, 300); // 300ms de delay para simular filtro
   };
 
   // Gerenciamento de itens em um pedido
@@ -744,565 +770,393 @@ export default function Pedidos() {
 
   return (
     <div className={styles.page_container}>
-      <main className={styles.main_content}>
+       <main className={styles.main_content}>
         <div className={styles.page_header}>
           <h1 className={styles.page_title}>Gerenciamento de Pedidos</h1>
           <button 
             className={styles.add_button}
             onClick={() => openModal()}
-            disabled={loading}
+            disabled={isInitialLoading || loading}
           >
             <Plus size={16} />
             Novo Pedido
           </button>
         </div>
 
-        <div className={styles.filters_row}>
-          <div className={styles.search_container}>
-            <div className={styles.search_box}>
-              <Search size={20} className={styles.search_icon} />
-              <input 
-                type="text" 
-                placeholder="Buscar pedidos por ID, cliente..."
-                className={styles.search_input}
-                value={searchTerm}
-                onChange={handleSearch}
-              />
+        {isInitialLoading ? (
+          <div className={styles.loading}>
+            <div className={styles.spinner}></div>
+            <p>Carregando dados dos pedidos...</p>
+          </div>
+        ) : (
+          <>
+            <div className={styles.filters_row}>
+              <div className={styles.search_container}>
+                <div className={styles.search_box}>
+                  <Search size={20} className={styles.search_icon} />
+                  <input 
+                    type="text" 
+                    placeholder="Buscar pedidos por ID, cliente..."
+                    className={styles.search_input}
+                    value={searchTerm}
+                    onChange={handleSearch}
+                  />
+                </div>
+              </div>
+              
+              <div className={styles.filter_container}>
+                <div className={styles.filter_box}>
+                  <Filter size={20} className={styles.filter_icon} />
+                  <select 
+                    className={styles.filter_select}
+                    value={statusFilter}
+                    onChange={handleStatusFilter}
+                  >
+                    <option value="todos">Todos os status</option>
+                    <option value="pendente">Pendente</option>
+                    <option value="processando">Processando</option>
+                    <option value="enviado">Enviado</option>
+                    <option value="entregue">Entregue</option>
+                    <option value="cancelado">Cancelado</option>
+                  </select>
+                </div>
+              </div>
+              
+              <button className={styles.export_button} onClick={exportarPedidos} disabled={loading}>
+                <Download size={16} />
+                Exportar
+              </button>
             </div>
-          </div>
-          
-          <div className={styles.filter_container}>
-            <div className={styles.filter_box}>
-              <Filter size={20} className={styles.filter_icon} />
-              <select 
-                className={styles.filter_select}
-                value={statusFilter}
-                onChange={handleStatusFilter}
-              >
-                <option value="todos">Todos os status</option>
-                <option value="pendente">Pendente</option>
-                <option value="processando">Processando</option>
-                <option value="enviado">Enviado</option>
-                <option value="entregue">Entregue</option>
-                <option value="cancelado">Cancelado</option>
-              </select>
+
+            <div className={styles.stats_cards}>
+              <div className={styles.stat_card}>
+                <h3>Total de Pedidos</h3>
+                <p className={styles.stat_value}>{getTotalPedidos()}</p>
+              </div>
+              <div className={styles.stat_card}>
+                <h3>Valor Total</h3>
+                <p className={styles.stat_value}>
+                  R$ {getTotalValor().toFixed(2).replace('.', ',')}
+                </p>
+              </div>
             </div>
-          </div>
-          
-          <button className={styles.export_button} onClick={exportarPedidos} disabled={loading}>
-            <Download size={16} />
-            Exportar
-          </button>
-        </div>
 
-        <div className={styles.stats_cards}>
-          <div className={styles.stat_card}>
-            <h3>Total de Pedidos</h3>
-            <p className={styles.stat_value}>{getTotalPedidos()}</p>
-          </div>
-          <div className={styles.stat_card}>
-            <h3>Valor Total</h3>
-            <p className={styles.stat_value}>
-              R$ {getTotalValor().toFixed(2).replace('.', ',')}
-            </p>
-          </div>
-        </div>
+            {error && (
+              <div className={styles.error_message}>
+                {error}
+              </div>
+            )}
 
-        {error && (
-          <div className={styles.error_message}>
-            {error}
-          </div>
-        )}
-
-        <div className={styles.table_container}>
-          {loading ? (
-            <div className={styles.loading}>Carregando...</div>
-          ) : (
-            <table className={styles.pedidos_table}>
-              <thead>
-                <tr>
-                  <th>ID</th>
-                  <th>Cliente</th>
-                  <th>Data</th>
-                  <th>Valor</th>
-                  <th>Status</th>
-                  <th>Itens</th>
-                  <th>Ações</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredPedidos.length > 0 ? (
-                  filteredPedidos.map(pedido => (
-                    <tr key={pedido.id}>
-                      <td>#{pedido.id}</td>
-                      <td>
-                        <div className={styles.cliente_info}>
-                          <span className={styles.cliente_nome}>{pedido.clienteNome}</span>
-                          <span className={styles.cliente_email}>{pedido.clienteEmail}</span>
-                        </div>
-                      </td>
-                      <td>{new Date(pedido.data).toLocaleDateString('pt-BR')}</td>
-                      <td>R$ {parseFloat(pedido.valor || 0).toFixed(2).replace('.', ',')}</td>
-                      <td>
-                        <span className={`${styles.status} ${getStatusClass(pedido.status)}`}>
-                          {pedido.status}
-                        </span>
-                      </td>
-                      <td>{pedido.items?.length || 0} {pedido.items?.length === 1 ? 'item' : 'itens'}</td>
-                      <td>
-                        <div className={styles.action_buttons}>
-                          <button 
-                            className={`${styles.action_button} ${styles.view}`}
-                            title="Visualizar Detalhes"
-                            onClick={() => openDetalhesModal(pedido)}
-                          >
-                            <Eye size={16} />
-                          </button>
-                          <button 
-                            className={`${styles.action_button} ${styles.edit}`}
-                            onClick={() => openModal(pedido)}
-                            title="Editar Pedido"
-                            disabled={loading}
-                          >
-                            <Edit size={16} />
-                          </button>
-                          <button 
-                            className={`${styles.action_button} ${styles.delete}`}
-                            onClick={() => handleDelete(pedido.id)}
-                            title="Excluir Pedido"
-                            disabled={loading}
-                          >
-                            <Trash2 size={16} />
-                          </button>
-                        </div>
-                      </td>
+            <div className={styles.table_container}>
+              {loading ? (
+                <div className={styles.table_loading}>
+                  <div className={styles.spinner}></div>
+                  <p>Atualizando dados...</p>
+                </div>
+              ) : (
+                <table className={styles.pedidos_table}>
+                  <thead>
+                    <tr>
+                      <th>ID</th>
+                      <th>Cliente</th>
+                      <th>Data</th>
+                      <th>Valor</th>
+                      <th>Status</th>
+                      <th>Itens</th>
+                      <th>Ações</th>
                     </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan="7" className={styles.no_results}>
-                      Nenhum pedido encontrado
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          )}
-        </div>
+                  </thead>
+                  <tbody>
+                    {filteredPedidos.length > 0 ? (
+                      filteredPedidos.map(pedido => (
+                        <tr key={pedido.id}>
+                          <td>#{pedido.id}</td>
+                          <td>
+                            <div className={styles.cliente_info}>
+                              <span className={styles.cliente_nome}>{pedido.clienteNome}</span>
+                              <span className={styles.cliente_email}>{pedido.clienteEmail}</span>
+                            </div>
+                          </td>
+                          <td>{new Date(pedido.data).toLocaleDateString('pt-BR')}</td>
+                          <td>R$ {parseFloat(pedido.valor || 0).toFixed(2).replace('.', ',')}</td>
+                          <td>
+                            <span className={`${styles.status} ${getStatusClass(pedido.status)}`}>
+                              {pedido.status}
+                            </span>
+                          </td>
+                          <td>{pedido.items?.length || 0} {pedido.items?.length === 1 ? 'item' : 'itens'}</td>
+                          <td>
+                            <div className={styles.action_buttons}>
+                              <button 
+                                className={`${styles.action_button} ${styles.view}`}
+                                title="Visualizar Detalhes"
+                                onClick={() => openDetalhesModal(pedido)}
+                              >
+                                <Eye size={16} />
+                              </button>
+                              <button 
+                                className={`${styles.action_button} ${styles.edit}`}
+                                onClick={() => openModal(pedido)}
+                                title="Editar Pedido"
+                                disabled={loading}
+                              >
+                                <Edit size={16} />
+                              </button>
+                              <button 
+                                className={`${styles.action_button} ${styles.delete}`}
+                                onClick={() => handleDelete(pedido.id)}
+                                title="Excluir Pedido"
+                                disabled={loading}
+                              >
+                                <Trash2 size={16} />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr>
+                        <td colSpan="7" className={styles.no_results}>
+                          Nenhum pedido encontrado
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          </>
+        )}
       </main>
 
       {/* Modal de Cadastro/Edição de Pedido */}
       {isModalOpen && (
-        <div className={styles.modal_overlay}>
-          <div className={styles.modal_large}>
-            <div className={styles.modal_header}>
-              <h2>{formData.id ? "Editar Pedido" : "Novo Pedido"}</h2>
-              <button className={styles.close_button} onClick={closeModal}>×</button>
-            </div>
-            <form onSubmit={handleSubmit} className={styles.pedido_form}>
-              <div className={styles.modal_columns}>
-                <div className={styles.left_column}>
-                  <div className={styles.column_header}>
-                    <h3>Dados do Pedido</h3>
-                  </div>
-                  
-                  <div className={styles.form_grid}>
-                    <div className={styles.form_group}>
-                      <label htmlFor="user_id">Cliente</label>
-                      <select
-                        id="user_id"
-                        name="user_id"
-                        value={formData.user_id || ""}
-                        onChange={handleInputChange}
-                      >
-                        <option value="">Selecione um cliente</option>
-                        {clientes.map(cliente => (
-                          <option key={cliente.id} value={cliente.id}>
-                            {cliente.name} ({cliente.email})
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                    <div className={styles.form_group}>
-                      <label htmlFor="contact_phone">Telefone *</label>
-                      <input
-                        type="text"
-                        id="contact_phone"
-                        name="contact_phone"
-                        value={formData.contact_phone || ""}
-                        onChange={handleInputChange}
-                        required
-                        placeholder="(00) 00000-0000"
-                      />
-                    </div>
-                    <div className={styles.form_group}>
-                      <label htmlFor="delivery_time">Data de Entrega</label>
-                      <input
-                        type="datetime-local"
-                        id="delivery_time"
-                        name="delivery_time"
-                        value={formData.delivery_time || ""}
-                        onChange={handleInputChange}
-                      />
-                    </div>
-                    <div className={styles.form_group}>
-                      <label htmlFor="payment_method">Método de Pagamento *</label>
-                      <select
-                        id="payment_method"
-                        name="payment_method"
-                        value={formData.payment_method || "cash"}
-                        onChange={handleInputChange}
-                        required
-                      >
-                        <option value="cash">Dinheiro</option>
-                        <option value="credit_card">Cartão de Crédito</option>
-                        <option value="debit_card">Cartão de Débito</option>
-                        <option value="pix">PIX</option>
-                      </select>
-                    </div>
-                    <div className={styles.form_group_full}>
-                      <label htmlFor="delivery_address">Endereço de Entrega</label>
-                      <input
-                        type="text"
-                        id="delivery_address"
-                        name="delivery_address"
-                        value={formData.delivery_address || ""}
-                        onChange={handleInputChange}
-                        placeholder="Endereço completo"
-                      />
-                    </div>
-                    <div className={styles.form_group_full}>
-                      <label htmlFor="notes">Observações</label>
-                      <textarea
-                        id="notes"
-                        name="notes"
-                        value={formData.notes || ""}
-                        onChange={handleInputChange}
-                        rows="3"
-                        placeholder="Observações sobre o pedido (opcional)"
-                      ></textarea>
-                    </div>
-                    {formData.id && (
-                      <div className={styles.form_group}>
-                        <label htmlFor="status">Status</label>
-                        <select
-                          id="status"
-                          name="status"
-                          value={formData.status || "pending"}
-                          onChange={handleInputChange}
-                        >
-                          <option value="pending">Pendente</option>
-                          <option value="processing">Processando</option>
-                          <option value="shipped">Enviado</option>
-                          <option value="delivered">Entregue</option>
-                          <option value="canceled">Cancelado</option>
-                        </select>
-                      </div>
-                    )}
-                  </div>
-                </div>
-                
-                <div className={styles.right_column}>
-                  <div className={styles.column_header}>
-                    <h3>Itens do Pedido</h3>
-                    {selectedItems.length > 0 && (
-                      <div className={styles.cart_total}>
-                        <ShoppingCart size={18} />
-                        <span>R$ {calculateCartTotal().toFixed(2).replace('.', ',')}</span>
-                      </div>
-                    )}
-                  </div>
-                  
-                  {/* Lista de itens selecionados */}
-                  <div className={styles.selected_items_container}>
-                    {selectedItems.length > 0 ? (
-                      <div className={styles.selected_items_list}>
-                        {selectedItems.map((item, index) => (
-                          <div key={index} className={styles.selected_item}>
-                            <div className={styles.selected_item_header}>
-                              <h4>{item.specific_details.name || 'Item'}</h4>
-                              <button 
-                                type="button" 
-                                className={styles.remove_item_button}
-                                onClick={() => handleRemoveItem(index)}
-                              >
-                                <X size={16} />
-                              </button>
-                            </div>
-                            <div className={styles.selected_item_details}>
-                              <div className={styles.item_size_label}>
-                                Tamanho: <span>{item.size === 'small' ? 'P' : (item.size === 'medium' ? 'M' : 'G')}</span>
-                              </div>
-                              <div className={styles.item_price}>
-                                R$ {parseFloat(item.unit_price).toFixed(2).replace('.', ',')}
-                              </div>
-                            </div>
-                            <div className={styles.item_quantity_control}>
-                              <button 
-                                type="button" 
-                                className={styles.quantity_button}
-                                onClick={() => handleUpdateItemQuantity(index, item.quantity - 1)}
-                                disabled={item.quantity <= 1}
-                              >
-                                -
-                              </button>
-                              <span className={styles.quantity_value}>{item.quantity}</span>
-                              <button 
-                                type="button" 
-                                className={styles.quantity_button}
-                                onClick={() => handleUpdateItemQuantity(index, item.quantity + 1)}
-                              >
-                                +
-                              </button>
-                            </div>
-                            <div className={styles.item_subtotal}>
-                              Subtotal: <span>R$ {(item.quantity * parseFloat(item.unit_price)).toFixed(2).replace('.', ',')}</span>
-                            </div>
-                            <div className={styles.item_instructions}>
-                              <input
-                                type="text"
-                                placeholder="Instruções especiais (opcional)"
-                                value={item.special_instructions || ''}
-                                onChange={(e) => handleSpecialInstructionsChange(index, e.target.value)}
-                                className={styles.instructions_input}
-                              />
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <div className={styles.empty_cart}>
-                        <ShoppingCart size={48} className={styles.empty_cart_icon} />
-                        <p>Nenhum item adicionado ao pedido</p>
-                        <p className={styles.empty_cart_help}>Selecione itens abaixo para adicionar ao pedido</p>
-                      </div>
-                    )}
-                  </div>
-                  
-                  {/* Catálogo de itens disponíveis */}
-                  <div className={styles.available_items_section}>
-                    <h4 className={styles.available_items_title}>Adicionar Itens</h4>
-                    
-                    <div className={styles.items_catalog}>
-                      {itens && itens.length > 0 ? (
-                        itens.map((item) => (
-                          <div key={item.id} className={styles.catalog_item}>
-                            <div className={styles.catalog_item_header}>
-                              <h5>{item.name}</h5>
-                              <p className={styles.item_description}>{item.description}</p>
-                            </div>
-                            <div className={styles.catalog_item_controls}>
-                              <div className={styles.catalog_item_sizes}>
-                                <select
-                                  value={itemSizes[item.id] || 'small'}
-                                  onChange={(e) => handleSizeChange(item.id, e.target.value)}
-                                  className={styles.size_select}
-                                >
-                                  <option value="small">Pequeno - R$ {parseFloat(item.price_small).toFixed(2).replace('.', ',')}</option>
-                                  <option value="medium">Médio - R$ {parseFloat(item.price_medium).toFixed(2).replace('.', ',')}</option>
-                                  <option value="large">Grande - R$ {parseFloat(item.price_large).toFixed(2).replace('.', ',')}</option>
-                                </select>
-                              </div>
-                              <button 
-                                type="button" 
-                                className={styles.add_catalog_item}
-                                onClick={() => handleAddItem(item)}
-                              >
-                                <Plus size={16} />
-                                Adicionar
-                              </button>
-                            </div>
-                          </div>
-                        ))
-                      ) : (
-                        <p className={styles.no_items_message}>Nenhum item disponível.</p>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </div>
-              
-              <div className={styles.form_actions}>
-                <button 
-                  type="button" 
-                  className={styles.cancel_button} 
-                  onClick={closeModal} 
-                  disabled={loading}
-                >
-                  Cancelar
-                </button>
-                <button 
-                  type="submit" 
-                  className={styles.save_button} 
-                  disabled={loading || selectedItems.length === 0}
-                >
-                  {loading ? "Salvando..." : "Salvar Pedido"}
-                </button>
-              </div>
-            </form>
+      <div className={styles.modal_overlay}>
+        <div className={styles.modal_large}>
+          <div className={styles.modal_header}>
+            <h2>{formData.id ? "Editar Pedido" : "Novo Pedido"}</h2>
+            <button className={styles.close_button} onClick={closeModal}>×</button>
           </div>
-        </div>
-      )}
-
-      {/* Modal de Detalhes do Pedido */}
-      {isDetalhesModalOpen && selectedPedido && (
-        <div className={styles.modal_overlay}>
-          <div className={`${styles.modal} ${styles.detalhes_modal}`}>
-            <div className={styles.modal_header}>
-              <h2>Detalhes do Pedido #{selectedPedido.id}</h2>
-              <button className={styles.close_button} onClick={closeDetalhesModal}>×</button>
-            </div>
-            
-            <div className={styles.detalhes_container}>
-              <div className={styles.detalhes_status_header}>
-                <span className={`${styles.status} ${styles.status_badge} ${getStatusClass(selectedPedido.status)}`}>
-                  {selectedPedido.status}
-                </span>
-                <div className={styles.status_update_container}>
-                  <select
-                    className={styles.status_select}
-                    value={selectedPedido.status}
-                    onChange={(e) => handleStatusChange(selectedPedido, e.target.value)}
-                    disabled={loading}
-                  >
-                    <option value="Pendente">Pendente</option>
-                    <option value="Processando">Processando</option>
-                    <option value="Enviado">Enviado</option>
-                    <option value="Entregue">Entregue</option>
-                    <option value="Cancelado">Cancelado</option>
-                  </select>
-                  <button 
-                    className={styles.status_update_button} 
-                    onClick={() => handleStatusChange(selectedPedido, document.querySelector(`.${styles.status_select}`).value)}
-                    disabled={loading}
-                  >
-                    <Truck size={16} />
-                    Atualizar Status
-                  </button>
+          <form onSubmit={handleSubmit} className={styles.pedido_form}>
+            <div className={styles.modal_columns}>
+              <div className={styles.left_column}>
+                <div className={styles.column_header}>
+                  <h3>Dados do Pedido</h3>
+                </div>
+                
+                <div className={styles.form_grid}>
+                  <div className={styles.form_group}>
+                    <label htmlFor="user_id">Cliente</label>
+                    <select
+                      id="user_id"
+                      name="user_id"
+                      value={formData.user_id || ""}
+                      onChange={handleInputChange}
+                    >
+                      <option value="">Selecione um cliente</option>
+                      {clientes.map(cliente => (
+                        <option key={cliente.id} value={cliente.id}>
+                          {cliente.name} ({cliente.email})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className={styles.form_group}>
+                    <label htmlFor="contact_phone">Telefone *</label>
+                    <input
+                      type="text"
+                      id="contact_phone"
+                      name="contact_phone"
+                      value={formData.contact_phone || ""}
+                      onChange={handleInputChange}
+                      required
+                      placeholder="(00) 00000-0000"
+                    />
+                  </div>
+                  <div className={styles.form_group}>
+                    <label htmlFor="delivery_time">Data de Entrega</label>
+                    <input
+                      type="datetime-local"
+                      id="delivery_time"
+                      name="delivery_time"
+                      value={formData.delivery_time || ""}
+                      onChange={handleInputChange}
+                    />
+                  </div>
+                  <div className={styles.form_group}>
+                    <label htmlFor="payment_method">Método de Pagamento *</label>
+                    <select
+                      id="payment_method"
+                      name="payment_method"
+                      value={formData.payment_method || "cash"}
+                      onChange={handleInputChange}
+                      required
+                    >
+                      <option value="cash">Dinheiro</option>
+                      <option value="credit_card">Cartão de Crédito</option>
+                      <option value="debit_card">Cartão de Débito</option>
+                      <option value="pix">PIX</option>
+                    </select>
+                  </div>
+                  <div className={styles.form_group_full}>
+                    <label htmlFor="delivery_address">Endereço de Entrega</label>
+                    <input
+                      type="text"
+                      id="delivery_address"
+                      name="delivery_address"
+                      value={formData.delivery_address || ""}
+                      onChange={handleInputChange}
+                      placeholder="Endereço completo"
+                    />
+                  </div>
+                  <div className={styles.form_group_full}>
+                    <label htmlFor="notes">Observações</label>
+                    <textarea
+                      id="notes"
+                      name="notes"
+                      value={formData.notes || ""}
+                      onChange={handleInputChange}
+                      rows="3"
+                      placeholder="Observações sobre o pedido (opcional)"
+                    ></textarea>
+                  </div>
+                  {formData.id && (
+                    <div className={styles.form_group}>
+                      <label htmlFor="status">Status</label>
+                      <select
+                        id="status"
+                        name="status"
+                        value={formData.status || "pending"}
+                        onChange={handleInputChange}
+                      >
+                        <option value="pending">Pendente</option>
+                        <option value="processing">Processando</option>
+                        <option value="shipped">Enviado</option>
+                        <option value="delivered">Entregue</option>
+                        <option value="canceled">Cancelado</option>
+                      </select>
+                    </div>
+                  )}
                 </div>
               </div>
               
-              <div className={styles.detalhes_grid_container}>
-                <div className={styles.detalhes_section}>
-                  <h3>
-                    <FileText size={18} />
-                    Informações do Pedido
-                  </h3>
-                  <div className={styles.detalhes_grid}>
-                    <div>
-                      <p className={styles.detail_label}>Cliente:</p>
-                      <p className={styles.detail_value}>{selectedPedido.clienteNome}</p>
+              <div className={styles.right_column}>
+                <div className={styles.column_header}>
+                  <h3>Itens do Pedido</h3>
+                  {selectedItems.length > 0 && (
+                    <div className={styles.cart_total}>
+                      <ShoppingCart size={18} />
+                      <span>R$ {calculateCartTotal().toFixed(2).replace('.', ',')}</span>
                     </div>
-                    <div>
-                      <p className={styles.detail_label}>Data do Pedido:</p>
-                      <p className={styles.detail_value}>{new Date(selectedPedido.data).toLocaleDateString('pt-BR')}</p>
+                  )}
+                </div>
+                
+                {/* Lista de itens selecionados */}
+                <div className={styles.selected_items_container}>
+                  {selectedItems.length > 0 ? (
+                    <div className={styles.selected_items_list}>
+                      {selectedItems.map((item, index) => (
+                        <div key={index} className={styles.selected_item}>
+                          <div className={styles.selected_item_header}>
+                            <h4>{item.specific_details.name || 'Item'}</h4>
+                            <button 
+                              type="button" 
+                              className={styles.remove_item_button}
+                              onClick={() => handleRemoveItem(index)}
+                            >
+                              <X size={16} />
+                            </button>
+                          </div>
+                          <div className={styles.selected_item_details}>
+                            <div className={styles.item_size_label}>
+                              Tamanho: <span>{item.size === 'small' ? 'P' : (item.size === 'medium' ? 'M' : 'G')}</span>
+                            </div>
+                            <div className={styles.item_price}>
+                              R$ {parseFloat(item.unit_price).toFixed(2).replace('.', ',')}
+                            </div>
+                          </div>
+                          <div className={styles.item_quantity_control}>
+                            <button 
+                              type="button" 
+                              className={styles.quantity_button}
+                              onClick={() => handleUpdateItemQuantity(index, item.quantity - 1)}
+                              disabled={item.quantity <= 1}
+                            >
+                              -
+                            </button>
+                            <span className={styles.quantity_value}>{item.quantity}</span>
+                            <button 
+                              type="button" 
+                              className={styles.quantity_button}
+                              onClick={() => handleUpdateItemQuantity(index, item.quantity + 1)}
+                            >
+                              +
+                            </button>
+                          </div>
+                          <div className={styles.item_subtotal}>
+                            Subtotal: <span>R$ {(item.quantity * parseFloat(item.unit_price)).toFixed(2).replace('.', ',')}</span>
+                          </div>
+                          <div className={styles.item_instructions}>
+                            <input
+                              type="text"
+                              placeholder="Instruções especiais (opcional)"
+                              value={item.special_instructions || ''}
+                              onChange={(e) => handleSpecialInstructionsChange(index, e.target.value)}
+                              className={styles.instructions_input}
+                            />
+                          </div>
+                        </div>
+                      ))}
                     </div>
-                    <div>
-                      <p className={styles.detail_label}>Valor Total:</p>
-                      <p className={styles.detail_value}><strong>R$ {parseFloat(selectedPedido.valor).toFixed(2).replace('.', ',')}</strong></p>
+                  ) : (
+                    <div className={styles.empty_cart}>
+                      <ShoppingCart size={48} className={styles.empty_cart_icon} />
+                      <p>Nenhum item adicionado ao pedido</p>
+                      <p className={styles.empty_cart_help}>Selecione itens abaixo para adicionar ao pedido</p>
                     </div>
-                    <div>
-                      <p className={styles.detail_label}>Método de Pagamento:</p>
-                      <p className={styles.detail_value}>
-                        {paymentMethods[selectedPedido.payment_method] || selectedPedido.payment_method}
-                      </p>
-                    </div>
-                    {selectedPedido.delivery_time && (
-                      <div>
-                        <p className={styles.detail_label}>Horário de Entrega:</p>
-                        <p className={styles.detail_value}>{formatDateTime(selectedPedido.delivery_time)}</p>
-                      </div>
+                  )}
+                </div>
+                
+                {/* Catálogo de itens disponíveis */}
+                <div className={styles.available_items_section}>
+                  <h4 className={styles.available_items_title}>Adicionar Itens</h4>
+                  
+                  <div className={styles.items_catalog}>
+                    {itens && itens.length > 0 ? (
+                      itens.map((item) => (
+                        <div key={item.id} className={styles.catalog_item}>
+                          <div className={styles.catalog_item_header}>
+                            <h5>{item.name}</h5>
+                            <p className={styles.item_description}>{item.description}</p>
+                          </div>
+                          <div className={styles.catalog_item_controls}>
+                            <div className={styles.catalog_item_sizes}>
+                              <select
+                                value={itemSizes[item.id] || 'small'}
+                                onChange={(e) => handleSizeChange(item.id, e.target.value)}
+                                className={styles.size_select}
+                              >
+                                <option value="small">Pequeno - R$ {parseFloat(item.price_small).toFixed(2).replace('.', ',')}</option>
+                                <option value="medium">Médio - R$ {parseFloat(item.price_medium).toFixed(2).replace('.', ',')}</option>
+                                <option value="large">Grande - R$ {parseFloat(item.price_large).toFixed(2).replace('.', ',')}</option>
+                              </select>
+                            </div>
+                            <button 
+                              type="button" 
+                              className={styles.add_catalog_item}
+                              onClick={() => handleAddItem(item)}
+                            >
+                              <Plus size={16} />
+                              Adicionar
+                            </button>
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <p className={styles.no_items_message}>Nenhum item disponível.</p>
                     )}
                   </div>
                 </div>
-                
-                <div className={styles.detalhes_section}>
-                  <h3>
-                    <Package size={18} />
-                    Dados de Contato
-                  </h3>
-                  <div className={styles.detalhes_grid}>
-                    <div>
-                      <p className={styles.detail_label}>Email:</p>
-                      <p className={styles.detail_value}>{selectedPedido.clienteEmail || 'Não informado'}</p>
-                    </div>
-                    <div>
-                      <p className={styles.detail_label}>Telefone:</p>
-                      <p className={styles.detail_value}>{selectedPedido.clienteTelefone || 'Não informado'}</p>
-                    </div>
-                    <div className={styles.detail_full}>
-                      <p className={styles.detail_label}>Endereço de Entrega:</p>
-                      <p className={styles.detail_value}>{selectedPedido.endereco || 'Não informado'}</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              
-              <div className={styles.detalhes_section}>
-                <h3>
-                  <ShoppingCart size={18} />
-                  Itens do Pedido
-                </h3>
-                {selectedPedido.items && selectedPedido.items.length > 0 ? (
-                  <div className={styles.itens_container}>
-                    <table className={styles.itens_table}>
-                      <thead>
-                        <tr>
-                          <th>Item</th>
-                          <th>Tamanho</th>
-                          <th>Quantidade</th>
-                          <th>Preço Unit.</th>
-                          <th>Subtotal</th>
-                          <th>Observações</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {selectedPedido.items.map(item => (
-                          <tr key={item.id || `item-${Math.random()}`}>
-                            <td>{item.item?.name || 'Item não encontrado'}</td>
-                            <td className={styles.item_size_cell}>
-                              {item.size === 'small' ? 'P' : (item.size === 'medium' ? 'M' : 'G')}
-                            </td>
-                            <td className={styles.item_qty_cell}>{item.quantity}</td>
-                            <td>R$ {parseFloat(item.unit_price || 0).toFixed(2).replace('.', ',')}</td>
-                            <td><strong>R$ {parseFloat(item.subtotal || (item.quantity * (item.unit_price || 0))).toFixed(2).replace('.', ',')}</strong></td>
-                            <td className={styles.item_notes_cell}>{item.special_instructions || item.notes || '-'}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                      <tfoot>
-                        <tr>
-                          <td colSpan="4" className={styles.total_label}>Total</td>
-                          <td colSpan="2" className={styles.total_value}>
-                            R$ {parseFloat(selectedPedido.valor || 0).toFixed(2).replace('.', ',')}
-                          </td>
-                        </tr>
-                      </tfoot>
-                    </table>
-                  </div>
-                ) : (
-                  <p className={styles.no_items}>Nenhum item encontrado neste pedido.</p>
-                )}
-              </div>
-              
-              {selectedPedido.notes && (
-                <div className={styles.detalhes_section}>
-                  <h3>Observações</h3>
-                  <div className={styles.observacoes_box}>
-                    <p className={styles.observacoes_text}>{selectedPedido.notes}</p>
-                  </div>
-                </div>
-              )}
-              
-              <div className={styles.detalhes_actions}>
-                <button 
-                  className={styles.invoice_button} 
-                  onClick={() => generateInvoicePDF(selectedPedido)}
-                  disabled={loading}
-                >
-                  <FileText size={16} />
-                  Gerar Nota Fiscal
-                </button>
               </div>
             </div>
             
@@ -1310,27 +1164,212 @@ export default function Pedidos() {
               <button 
                 type="button" 
                 className={styles.cancel_button} 
-                onClick={closeDetalhesModal}
+                onClick={closeModal} 
                 disabled={loading}
               >
-                Fechar
+                Cancelar
               </button>
               <button 
-                type="button" 
-                className={styles.edit_button} 
-                onClick={() => {
-                  closeDetalhesModal();
-                  openModal(selectedPedido);
-                }}
+                type="submit" 
+                className={styles.save_button} 
+                disabled={loading || selectedItems.length === 0}
+              >
+                {loading ? "Salvando..." : "Salvar Pedido"}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    )}
+
+
+      {/* Modal de Detalhes do Pedido */}
+      {isDetalhesModalOpen && selectedPedido && (
+      <div className={styles.modal_overlay}>
+        <div className={`${styles.modal} ${styles.detalhes_modal}`}>
+          <div className={styles.modal_header}>
+            <h2>Detalhes do Pedido #{selectedPedido.id}</h2>
+            <button className={styles.close_button} onClick={closeDetalhesModal}>×</button>
+          </div>
+          
+          <div className={styles.detalhes_container}>
+            <div className={styles.detalhes_status_header}>
+              <span className={`${styles.status} ${styles.status_badge} ${getStatusClass(selectedPedido.status)}`}>
+                {selectedPedido.status}
+              </span>
+              <div className={styles.status_update_container}>
+                <select
+                  className={styles.status_select}
+                  value={selectedPedido.status}
+                  onChange={(e) => handleStatusChange(selectedPedido, e.target.value)}
+                  disabled={loading}
+                >
+                  <option value="Pendente">Pendente</option>
+                  <option value="Processando">Processando</option>
+                  <option value="Enviado">Enviado</option>
+                  <option value="Entregue">Entregue</option>
+                  <option value="Cancelado">Cancelado</option>
+                </select>
+                <button 
+                  className={styles.status_update_button} 
+                  onClick={() => handleStatusChange(selectedPedido, document.querySelector(`.${styles.status_select}`).value)}
+                  disabled={loading}
+                >
+                  <Truck size={16} />
+                  Atualizar Status
+                </button>
+              </div>
+            </div>
+            
+            <div className={styles.detalhes_grid_container}>
+              <div className={styles.detalhes_section}>
+                <h3>
+                  <FileText size={18} />
+                  Informações do Pedido
+                </h3>
+                <div className={styles.detalhes_grid}>
+                  <div>
+                    <p className={styles.detail_label}>Cliente:</p>
+                    <p className={styles.detail_value}>{selectedPedido.clienteNome}</p>
+                  </div>
+                  <div>
+                    <p className={styles.detail_label}>Data do Pedido:</p>
+                    <p className={styles.detail_value}>{new Date(selectedPedido.data).toLocaleDateString('pt-BR')}</p>
+                  </div>
+                  <div>
+                    <p className={styles.detail_label}>Valor Total:</p>
+                    <p className={styles.detail_value}><strong>R$ {parseFloat(selectedPedido.valor).toFixed(2).replace('.', ',')}</strong></p>
+                  </div>
+                  <div>
+                    <p className={styles.detail_label}>Método de Pagamento:</p>
+                    <p className={styles.detail_value}>
+                      {paymentMethods[selectedPedido.payment_method] || selectedPedido.payment_method}
+                    </p>
+                  </div>
+                  {selectedPedido.delivery_time && (
+                    <div>
+                      <p className={styles.detail_label}>Horário de Entrega:</p>
+                      <p className={styles.detail_value}>{formatDateTime(selectedPedido.delivery_time)}</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+              
+              <div className={styles.detalhes_section}>
+                <h3>
+                  <Package size={18} />
+                  Dados de Contato
+                </h3>
+                <div className={styles.detalhes_grid}>
+                  <div>
+                    <p className={styles.detail_label}>Email:</p>
+                    <p className={styles.detail_value}>{selectedPedido.clienteEmail || 'Não informado'}</p>
+                  </div>
+                  <div>
+                    <p className={styles.detail_label}>Telefone:</p>
+                    <p className={styles.detail_value}>{selectedPedido.clienteTelefone || 'Não informado'}</p>
+                  </div>
+                  <div className={styles.detail_full}>
+                    <p className={styles.detail_label}>Endereço de Entrega:</p>
+                    <p className={styles.detail_value}>{selectedPedido.endereco || 'Não informado'}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <div className={styles.detalhes_section}>
+              <h3>
+                <ShoppingCart size={18} />
+                Itens do Pedido
+              </h3>
+              {selectedPedido.items && selectedPedido.items.length > 0 ? (
+                <div className={styles.itens_container}>
+                  <table className={styles.itens_table}>
+                    <thead>
+                      <tr>
+                        <th>Item</th>
+                        <th>Tamanho</th>
+                        <th>Quantidade</th>
+                        <th>Preço Unit.</th>
+                        <th>Subtotal</th>
+                        <th>Observações</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {selectedPedido.items.map(item => (
+                        <tr key={item.id || `item-${Math.random()}`}>
+                          <td>{item.item?.name || 'Item não encontrado'}</td>
+                          <td className={styles.item_size_cell}>
+                            {item.size === 'small' ? 'P' : (item.size === 'medium' ? 'M' : 'G')}
+                          </td>
+                          <td className={styles.item_qty_cell}>{item.quantity}</td>
+                          <td>R$ {parseFloat(item.unit_price || 0).toFixed(2).replace('.', ',')}</td>
+                          <td><strong>R$ {parseFloat(item.subtotal || (item.quantity * (item.unit_price || 0))).toFixed(2).replace('.', ',')}</strong></td>
+                          <td className={styles.item_notes_cell}>{item.special_instructions || item.notes || '-'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                    <tfoot>
+                      <tr>
+                        <td colSpan="4" className={styles.total_label}>Total</td>
+                        <td colSpan="2" className={styles.total_value}>
+                          R$ {parseFloat(selectedPedido.valor || 0).toFixed(2).replace('.', ',')}
+                        </td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              ) : (
+                <p className={styles.no_items}>Nenhum item encontrado neste pedido.</p>
+              )}
+            </div>
+            
+            {selectedPedido.notes && (
+              <div className={styles.detalhes_section}>
+                <h3>Observações</h3>
+                <div className={styles.observacoes_box}>
+                  <p className={styles.observacoes_text}>{selectedPedido.notes}</p>
+                </div>
+              </div>
+            )}
+            
+            <div className={styles.detalhes_actions}>
+              <button 
+                className={styles.invoice_button} 
+                onClick={() => generateInvoicePDF(selectedPedido)}
                 disabled={loading}
               >
-                <Edit size={16} />
-                Editar Pedido
+                <FileText size={16} />
+                Gerar Nota Fiscal
               </button>
             </div>
           </div>
+          
+          <div className={styles.form_actions}>
+            <button 
+              type="button" 
+              className={styles.cancel_button} 
+              onClick={closeDetalhesModal}
+              disabled={loading}
+            >
+              Fechar
+            </button>
+            <button 
+              type="button" 
+              className={styles.edit_button} 
+              onClick={() => {
+                closeDetalhesModal();
+                openModal(selectedPedido);
+              }}
+              disabled={loading}
+            >
+              <Edit size={16} />
+              Editar Pedido
+            </button>
+          </div>
         </div>
-      )}
+      </div>
+    )}
     </div>
   );
 }

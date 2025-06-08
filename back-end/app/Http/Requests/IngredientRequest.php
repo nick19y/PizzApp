@@ -81,11 +81,11 @@ class IngredientRequest extends FormRequest
             'imagem' => 'nullable|string|max:255',
         ];
 
-        // Para atualização, o código pode ser o mesmo. Para criação, é obrigatório e único
+        // Para atualização, o código pode ser o mesmo. Para criação, pode ser vazio ou único
         if ($this->isMethod('put') || $this->isMethod('patch')) {
-            $rules['codigo'] = ['required', 'string', 'max:20', Rule::unique('ingredients')->ignore($this->route('ingredient')->id)];
+            $rules['codigo'] = ['nullable', 'string', 'max:20', Rule::unique('ingredients')->ignore($this->route('ingredient')->id)];
         } else {
-            $rules['codigo'] = 'required|string|max:20|unique:ingredients';
+            $rules['codigo'] = 'nullable|string|max:20|unique:ingredients'; // ← Mudança aqui
         }
 
         return $rules;

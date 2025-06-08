@@ -262,13 +262,6 @@ export default function Clientes() {
                         <td>
                           <div className={styles.action_buttons}>
                             <button 
-                              className={`${styles.action_button} ${styles.view}`}
-                              title="Visualizar Cliente"
-                              onClick={() => alert(`Visualizando ${cliente.name}`)}
-                            >
-                              <Eye size={16} />
-                            </button>
-                            <button 
                               className={`${styles.action_button} ${styles.edit}`}
                               onClick={() => openModal(cliente)}
                               title="Editar Cliente"
